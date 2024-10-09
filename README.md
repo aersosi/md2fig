@@ -17,7 +17,7 @@ A Figma plugin that transforms Markdown-formatted text into a professionally des
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/t1c1/classic-resume-figma-plugin.git
+   git clone https://github.com/t1c1/md2fig.git
    ```
 
 2. **Load into Figma:**
@@ -86,7 +86,7 @@ A: Ensure your Markdown syntax is correct. Refer to the [Markdown Guide](https:/
 
 **Q2: I'm experiencing performance issues when generating large resumes.**
 
-A: Try breaking down your resume into smaller sections or optimizing the content. If the problem continues, please report it [here](https://github.com/t1c1/classic-resume-figma-plugin/issues).
+A: Try breaking down your resume into smaller sections or optimizing the content. If the problem continues, please report it [here](https://github.com/t1c1/md2fig/issues).
 
 **Q3: How do I update the plugin after making changes?**
 
@@ -127,17 +127,17 @@ For any questions, feedback, or support, please open an issue on GitHub or conta
 
 - [Figma Plugins Documentation](https://www.figma.com/plugin-docs/)
 - [Markdown Guide](https://www.markdownguide.org/)
-- [Report an Issue](https://github.com/t1c1/classic-resume-figma-plugin/issues)
+- [Report an Issue](https://github.com/t1c1/md2fig/issues)
 - [Contributing Guidelines](CONTRIBUTING.md) (if created)
 
 ## 📝 Changelog
 
-### v1.0.0 - 2024-10-01
+### v1.0.0 - 2024-10-08
 - Initial release of Classic Resume plugin.
 - Supports Markdown conversion to resume sections.
 - Features auto pagination and customizable layout.
 
-## 📈 Roadmap (Q1-2025)
+## 📈 Roadmap (2025)
 
 - [ ] **Export Options:** Allow exporting resumes in PDF or DOCX formats.
 - [ ] **Templates:** Introduce multiple resume templates for varied styles.
@@ -159,7 +159,7 @@ For any questions, feedback, or support, please open an issue on GitHub or conta
 
 If you encounter any issues or have questions about using the Classic Resume plugin, please:
 
-1. **Check Existing Issues:** Browse through existing issues on [GitHub](https://github.com/t1c1/classic-resume-figma-plugin/issues) to see if your question has already been answered.
+1. **Check Existing Issues:** Browse through existing issues on [GitHub](https://github.com/t1c1/md2fig/issues) to see if your question has already been answered.
 2. **Open a New Issue:** If you can't find a solution, feel free to open a new issue detailing your problem.
 3. **Contact Directly:** For urgent support, email me at [your-email@example.com](mailto:your-email@example.com).
 
