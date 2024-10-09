@@ -132,12 +132,12 @@ For any questions, feedback, or support, please open an issue on GitHub or conta
 
 ## 📝 Changelog
 
-### v1.0.0 - 2024-04-27
+### v1.0.0 - 2024-10-01
 - Initial release of Classic Resume plugin.
 - Supports Markdown conversion to resume sections.
 - Features auto pagination and customizable layout.
 
-## 📈 Roadmap
+## 📈 Roadmap (Q1-2025)
 
 - [ ] **Export Options:** Allow exporting resumes in PDF or DOCX formats.
 - [ ] **Templates:** Introduce multiple resume templates for varied styles.
