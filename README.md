@@ -1,4 +1,4 @@
-# Classic Resume Figma Plugin
+# Markdown to Figma - Classic Resume Figma Plugin
    
 ![Plugin Icon](assets/icon.png)
 
