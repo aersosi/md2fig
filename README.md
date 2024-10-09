@@ -1,5 +1,5 @@
 # Classic Resume Figma Plugin
-
+   
 ![Plugin Icon](assets/icon.png)
 
 A Figma plugin that transforms Markdown-formatted text into a professionally designed classic resume. Perfect for designers and professionals looking to create sleek resumes effortlessly.
@@ -119,18 +119,9 @@ Contributions are welcome! Please follow these guidelines:
    - Click "Compare & pull request".
    - Provide a clear description of your changes and submit the pull request.
 
-### Guidelines
-- **Code Quality:** Ensure your code is clean, well-documented, and follows best practices.
-- **Testing:** Test your changes thoroughly before submitting.
-- **Respect:** Be respectful and considerate in all interactions.
-
-## 🛡️ License
-
-This project is licensed under the MIT License.
-
 ## 📞 Contact
 
-For any questions, feedback, or support, please open an issue on GitHub or contact me directly at your-email@example.com.
+For any questions, feedback, or support, please open an issue on GitHub or contact me directly at t@thomas.tc.
 
 ## 🔗 Useful Links
 
