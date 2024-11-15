@@ -129,7 +129,12 @@ figma.ui.onmessage = async (msg) => {
         let content = line;
 
         // Handle different Markdown headers and list items
-        if (line.startsWith("# ")) {
+        if (line.startsWith("#### ")) {
+          fontSize = 12;
+          isBold = true;
+          content = line.replace(/^####\s*/, "");
+          yOffset += 6;
+        } else if (line.startsWith("# ")) {
           fontSize = 24;
           isBold = true;
           content = line.replace(/^#\s*/, "");

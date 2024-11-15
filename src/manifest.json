@@ -1,16 +1,18 @@
 {
   "name": "Classic Resume",
-  "id": "com.t1c1.classic-resume",
+  "id": "1438944668282665004",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
   "editorType": ["figma"],
-  "description": "Create a classic resume from Markdown within Figma.",
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  },
   "menu": [
     {
       "name": "Create Resume",
       "command": "create-resume"
     }
-  ],
-  "permissions": []
+  ]
 }
