@@ -1,4 +1,4 @@
-import { FONT_FAMILY, getPageDimensions, PLUGIN_UI_HEIGHT, PLUGIN_UI_WIDTH } from "./_constants.js";
+import { FONT_FAMILY, getPageDimensions, MARKDOWN_ELEMENTS, PLUGIN_UI_HEIGHT, PLUGIN_UI_WIDTH } from "./_constants.js";
 import { parseFormattedText } from "./_helpers.js"
 
 figma.showUI(__html__, {width: PLUGIN_UI_WIDTH, height: PLUGIN_UI_HEIGHT});
@@ -129,31 +129,23 @@ class ResumeBuilder {
 
     finish() {
         figma.viewport.scrollAndZoomIntoView(this.allPages);
-        figma.closePlugin();
+        // figma.closePlugin();
     }
 }
 
-// Markdown element configurations
-const MARKDOWN_ELEMENTS = {
-    'h1': { regex: /^#\s+(.*)$/, fontSize: 24, isBold: true, spaceBefore: 10, spaceAfter: 4 },
-    'h2': { regex: /^##\s+(.*)$/, fontSize: 18, isBold: true, spaceBefore: 10, spaceAfter: 4 },
-    'h3': { regex: /^###\s+(.*)$/, fontSize: 14, isBold: true, spaceBefore: 8, spaceAfter: 4 },
-    'h4': { regex: /^####\s+(.*)$/, fontSize: 12, isBold: true, spaceBefore: 6, spaceAfter: 4 },
-    'list': { regex: /^-\s+(.*)$/, fontSize: 10, isBold: false, spaceBefore: 4, spaceAfter: 4, prefix: '• ' }
-};
 
 function parseMarkdownLine(line) {
-    if (line.trim() === "") return { type: 'empty' };
+    if (line.trim() === "") return {type: 'empty'};
 
     for (const [type, config] of Object.entries(MARKDOWN_ELEMENTS)) {
         const match = line.match(config.regex);
         if (match) {
             const content = type === 'list' ? config.prefix + match[1] : match[1];
-            return { type, content, config };
+            return {type, content, config};
         }
     }
 
-    return { type: 'paragraph', content: line };
+    return {type: 'paragraph', content: line};
 }
 
 figma.ui.onmessage = async (msg) => {
