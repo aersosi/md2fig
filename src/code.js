@@ -1,5 +1,5 @@
 import { FONT_FAMILY, getPageDimensions, PLUGIN_UI_HEIGHT, PLUGIN_UI_WIDTH } from "./_constants.js";
-
+import { parseLink, parseMedium, parseBold } from "./_helpers.js"
 // Show UI
 figma.showUI(__html__, {width: PLUGIN_UI_WIDTH, height: PLUGIN_UI_HEIGHT});
 
@@ -21,36 +21,6 @@ async function createTextNode(content, fontSize, isBold, x, y, dimensions) {
     return textNode;
 }
 
-
-// Return if match = Bold
-function parseBold(match) {
-    if (match.startsWith("**") && match.endsWith("**")) {
-        return {text: match.slice(2, -2), bold: true, medium: false, link: null};
-    }
-    return null;
-}
-
-// Return if match = Medium
-function parseMedium(match) {
-    // Prüfen ob es ein einzelner Stern ist (nicht doppelt)
-    if (match.startsWith("*") && match.endsWith("*") && !match.startsWith("**") && !match.endsWith("***")) {
-        const content = match.slice(1, -1);
-        // Sicherstellen, dass der Inhalt nicht leer ist
-        if (content.length > 0) {
-            return { text: content, medium: true, bold: false, link: null };
-        }
-    }
-    return null;
-}
-
-// Return if match = Link
-function parseLink(match) {
-    const linkMatch = match.match(/\[(.*?)\]\((.*?)\)/);
-    if (linkMatch) {
-        return {text: linkMatch[1], bold: false, medium: false, link: linkMatch[2]};
-    }
-    return null;
-}
 
 // Main function that parses text
 function parseFormattedText(text) {

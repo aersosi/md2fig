@@ -21,13 +21,16 @@ async function build(watch = false) {
     if (watch) {
         console.log("👀 Watching for changes...");
 
-        // Watch HTML and CSS
-        const staticWatcher = chokidar.watch(
-            [path.resolve("src/ui.html"), path.resolve("src/index.css")],
-            { ignoreInitial: true }
+        // Watch entire src folder
+        const srcWatcher = chokidar.watch(
+            path.resolve("src"),
+            {
+                ignoreInitial: true,
+                ignored: ["**/*.js"] // JS files are handled by esbuild
+            }
         );
 
-        staticWatcher.on("change", (filePath) => {
+        srcWatcher.on("change", (filePath) => {
             console.log(`📄 ${path.basename(filePath)} changed, rebuilding HTML...`);
             buildHtml();
         });
@@ -41,16 +44,30 @@ async function build(watch = false) {
     }
 }
 
+function processCSS(cssContent, basePath) {
+    // Process @import statements
+    return cssContent.replace(/@import\s+["']([^"']+)["'];?/g, (match, importPath) => {
+        const fullPath = path.resolve(basePath, importPath);
+        if (fs.existsSync(fullPath)) {
+            const importedCSS = fs.readFileSync(fullPath, "utf-8");
+            // Recursively process imports in the imported file
+            return processCSS(importedCSS, path.dirname(fullPath));
+        }
+        return match; // Keep original if file not found
+    });
+}
+
 function buildHtml() {
     const htmlPath = path.resolve("src/ui.html");
     const cssPath = path.resolve("src/index.css");
 
     let html = fs.readFileSync(htmlPath, "utf-8");
-    const css = fs.readFileSync(cssPath, "utf-8");
+    const rawCSS = fs.readFileSync(cssPath, "utf-8");
+    const processedCSS = processCSS(rawCSS, path.dirname(cssPath));
 
     html = html.replace(
         /<link rel=["']stylesheet["'] href=["']index\.css["']\s*\/?>/,
-        `<style>\n${css}\n</style>`
+        `<style>\n${processedCSS}\n</style>`
     );
 
     fs.writeFileSync(path.resolve("dist/ui.html"), html, "utf-8");

@@ -5,27 +5,27 @@
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
-<h1 class="font-base">md_2_fig</h1>
+<!--<h1 class="font-base">md_2_fig</h1>-->
 
 <div class="card">
-    <div class="field">
-        <label class="font-sm font-bold" for="dpi-select">Resolution (DPI):</label>
-        <select id="dpi-select">
+    <div class="grid">
+        <label class="font-sm font-bold" for="dpi-select">Resolution</label>
+        <select class="radius-base px-xs" id="dpi-select">
             <option value="72">72 DPI (Web)</option>
             <option value="96" selected>96 DPI (Standard)</option>
             <option value="150">150 DPI (Medium Print)</option>
             <option value="300">300 DPI (High Print)</option>
         </select>
     </div>
-    <div class="field">
-        <label class="font-sm font-bold" for="markdown-input">Paste your Markdown content:</label>
-        <textarea id="markdown-input" placeholder="Paste your Markdown here..."></textarea>
+    <div class="grid font-mono">
+        <label class="font-sm font-bold" for="markdown-input">Content</label>
+        <textarea class="radius-base" id="markdown-input" placeholder="Paste your Markdown here"></textarea>
     </div>
 
     <div class="error-message" id="error-message"></div>
 </div>
 <br>
-<button class="font-base font-bold" id="generate">Generate Output</button>
+<button class="btn font-base font-bold radius-base w-full py-sm" id="generate">Generate Output</button>
 
 <script>
     document.getElementById('generate').onclick = () => {

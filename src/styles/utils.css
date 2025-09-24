@@ -1,0 +1,160 @@
+
+.font-xs {
+    font-size: 0.75rem;  /* 1rem */
+    line-height: 1rem;   /* 16px */
+}
+
+.font-sm {
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.25rem; /* 20px */
+}
+
+.font-base {
+    font-size: 1rem;     /* 16px */
+    line-height: 1.5rem; /* 24px */
+}
+
+.font-lg {
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.75rem; /* 28px */
+}
+
+.font-xl {
+    font-size: 1.25rem;  /* 20px */
+    line-height: 1.75rem; /* 28px */
+}
+
+.font-2xl {
+    font-size: 1.5rem;   /* 24px */
+    line-height: 2rem;   /* 32px */
+}
+
+.font-3xl {
+    font-size: 1.875rem; /* 30px */
+    line-height: 2.25rem; /* 36px */
+}
+
+
+.font-bold {
+    font-weight: 700;
+}
+
+.font-mono {
+    font-family: monospace;
+}
+
+
+.radius-xs {
+    border-radius: 4px;
+}
+
+.radius-sm {
+    border-radius: 6px;
+}
+
+.radius-base {
+    border-radius: 8px;
+}
+
+.radius-lg {
+    border-radius: 12px;
+}
+
+.radius-xl {
+    border-radius: 16px;
+}
+
+
+
+
+.w-full {
+    width: 100%;
+}
+
+
+/* Padding classes */
+.p-xs {
+    padding: 0.25rem;
+}
+
+.p-sm {
+    padding: 0.5rem;
+}
+
+.p-base {
+    padding: 0.75rem;
+}
+
+.p-lg {
+    padding: 1rem;
+}
+
+.p-xl {
+    padding: 1.25rem;
+}
+
+.p-2xl {
+    padding: 1.5rem;
+}
+
+/* Padding X (left and right) */
+.px-xs {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+.px-sm {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.px-base {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+.px-lg {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.px-xl {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+.px-2xl {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+/* Padding Y (top and bottom) */
+.py-xs {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+.py-sm {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.py-base {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.py-lg {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.py-xl {
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+}
+
+.py-2xl {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
