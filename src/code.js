@@ -20,7 +20,10 @@ class ResumeBuilder {
         await Promise.all([
             figma.loadFontAsync({family: FONT_FAMILY, style: "Regular"}),
             figma.loadFontAsync({family: FONT_FAMILY, style: "Semi Bold"}),
-            figma.loadFontAsync({family: FONT_FAMILY, style: "Bold"})
+            figma.loadFontAsync({family: FONT_FAMILY, style: "Bold"}),
+            figma.loadFontAsync({family: "Slussen", style: "Regular"}),
+            figma.loadFontAsync({family: "Slussen", style: "Medium"}),
+            figma.loadFontAsync({family: "Slussen", style: "Bold"})
         ]);
 
         this.fontsLoaded = true;
@@ -117,14 +120,16 @@ class ResumeBuilder {
         if (lines.length === 0) return;
 
         const content = lines.join(" ");
-        await this.addTextElement(content, 10, false, 2, 4);
+        const config = MARKDOWN_ELEMENTS.paragraph;
+        await this.addTextElement(content, config.fontSize, config.isBold, config.marginTop, config.marginBottom);
     }
 
     async processList(listItems) {
         if (listItems.length === 0) return;
 
         const content = listItems.join("\n");
-        await this.addTextElement(content, 10, false, 4, 4);
+        const config = MARKDOWN_ELEMENTS.list;
+        await this.addTextElement(content, config.fontSize, config.isBold, config.marginTop, config.marginBottom);
     }
 
     finish() {
@@ -151,6 +156,110 @@ function parseMarkdownLine(line) {
 figma.ui.onmessage = async (msg) => {
     if (msg.type === "create-resume") {
         try {
+            // Check if a text node is selected
+            const selection = figma.currentPage.selection;
+            if (selection.length === 1 && selection[0].type === 'TEXT') {
+                const textNode = selection[0];
+                await Promise.all([
+                    figma.loadFontAsync({ family: FONT_FAMILY, style: "Regular" }),
+                    figma.loadFontAsync({ family: FONT_FAMILY, style: "Semi Bold" }),
+                    figma.loadFontAsync({ family: FONT_FAMILY, style: "Bold" }),
+                    figma.loadFontAsync({ family: "Slussen", style: "Regular" }),
+                    figma.loadFontAsync({ family: "Slussen", style: "Medium" }),
+                    figma.loadFontAsync({ family: "Slussen", style: "Bold" })
+                ]);
+
+                // Build formatted content with style information
+                const lines = msg.markdown.split('\n');
+                let formattedParts = [];
+
+                for (const line of lines) {
+                    const parsed = parseMarkdownLine(line);
+                    let content = '';
+                    let fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
+                    let isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
+
+                    if (parsed.type === 'list') {
+                        content = parsed.content;
+                        fontSize = parsed.config.fontSize;
+                        isBold = parsed.config.isBold;
+                    } else if (parsed.type === 'paragraph') {
+                        content = parsed.content;
+                        fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
+                        isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
+                    } else if (parsed.config) {
+                        content = parsed.content;
+                        fontSize = parsed.config.fontSize;
+                        isBold = parsed.config.isBold;
+                    } else if (parsed.type === 'empty') {
+                        content = '';
+                        fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
+                        isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
+                    } else {
+                        content = line;
+                        fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
+                        isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
+                    }
+
+                    formattedParts.push({ content, fontSize, isBold });
+                }
+
+                // Apply formatting to the text node
+                const fullText = formattedParts.map(part => part.content).join('\n');
+                textNode.characters = fullText;
+
+                let currentIndex = 0;
+                for (const part of formattedParts) {
+                    if (part.content.length > 0) {
+                        // Set font size
+                        textNode.setRangeFontSize(currentIndex, currentIndex + part.content.length, part.fontSize);
+
+                        // Set font style (bold/regular)
+                        const fontStyle = part.isBold ? "Bold" : "Regular";
+                        textNode.setRangeFontName(currentIndex, currentIndex + part.content.length, {
+                            family: FONT_FAMILY,
+                            style: fontStyle,
+                        });
+
+                        // Apply inline formatting (bold, links, etc.)
+                        const inlineParts = parseFormattedText(part.content);
+                        let inlineIndex = currentIndex;
+                        for (const inlinePart of inlineParts) {
+                            if (inlinePart.text.length === 0) continue;
+
+                            let inlineFontStyle = part.isBold ? "Bold" : "Regular";
+                            if (inlinePart.bold) {
+                                inlineFontStyle = "Bold";
+                            } else if (inlinePart.medium) {
+                                inlineFontStyle = "Semi Bold";
+                            }
+
+                            textNode.setRangeFontName(inlineIndex, inlineIndex + inlinePart.text.length, {
+                                family: FONT_FAMILY,
+                                style: inlineFontStyle,
+                            });
+
+                            if (inlinePart.link) {
+                                textNode.setRangeHyperlink(inlineIndex, inlineIndex + inlinePart.text.length, {
+                                    type: "URL",
+                                    value: inlinePart.link
+                                });
+                                textNode.setRangeFills(inlineIndex, inlineIndex + inlinePart.text.length, [{
+                                    type: "SOLID",
+                                    color: {r: 0, g: 0, b: 1}
+                                }]);
+                            }
+
+                            inlineIndex += inlinePart.text.length;
+                        }
+                    }
+                    currentIndex += part.content.length + 1; // +1 for newline
+                }
+
+                figma.closePlugin();
+                return;
+            }
+
             const dpi = msg.dpi || 96;
             const pageFormat = msg.pageFormat || 'letter';
             const padding = msg.padding || 5;

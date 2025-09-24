@@ -38,5 +38,6 @@ export const MARKDOWN_ELEMENTS = {
     'h2': { regex: /^##\s+(.*)$/, fontSize: 18, isBold: true, marginTop: 10, marginBottom: 4 },
     'h3': { regex: /^###\s+(.*)$/, fontSize: 14, isBold: true, marginTop: 8, marginBottom: 4 },
     'h4': { regex: /^####\s+(.*)$/, fontSize: 12, isBold: true, marginTop: 6, marginBottom: 4 },
-    'list': { regex: /^[-*]\s+(.*)$/, fontSize: 10, isBold: false, marginTop: 4, marginBottom: 4, prefix: '• ' }
+    'list': { regex: /^[-*]\s+(.*)$/, fontSize: 10, isBold: false, marginTop: 4, marginBottom: 4, prefix: '• ' },
+    'paragraph': { fontSize: 10, isBold: false, marginTop: 2, marginBottom: 4 }
 };
