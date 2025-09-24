@@ -1,17 +1,12 @@
-// Show the UI
-figma.showUI(__html__, { width: 400, height: 500 });
+import { PAGE_WIDTH, PAGE_HEIGHT, MARGIN, CONTENT_WIDTH, PAGE_GAP, PLUGIN_UI_WIDTH, PLUGIN_UI_HEIGHT, FONT_FAMILY }  from "./_constants.js";
 
-// Constants for page dimensions and margins
-const PAGE_WIDTH = 8.5 * 96; // Standard US Letter size width in pixels
-const PAGE_HEIGHT = 11 * 96; // Standard US Letter size height in pixels
-const MARGIN = 0.5 * 96; // Half-inch margin in pixels
-const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
-const PAGE_GAP = 20; // Gap between pages
+// Show UI
+figma.showUI(__html__, { width: PLUGIN_UI_WIDTH, height: PLUGIN_UI_HEIGHT });
 
 async function createTextNode(content, fontSize, isBold, x, y) {
   const textNode = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: isBold ? "Bold" : "Regular" });
-  textNode.fontName = { family: "Inter", style: isBold ? "Bold" : "Regular" };
+  await figma.loadFontAsync({ family: FONT_FAMILY, style: isBold ? "Bold" : "Regular" });
+  textNode.fontName = { family: FONT_FAMILY, style: isBold ? "Bold" : "Regular" };
   textNode.fontSize = fontSize;
   textNode.x = x;
   textNode.y = y;
@@ -26,41 +21,59 @@ async function createTextNode(content, fontSize, isBold, x, y) {
   return textNode;
 }
 
-// Function to parse bold text and links
-function parseFormattedText(text) {
-  const parts = [];
-  let currentIndex = 0;
-  const regex = /(\*\*.*?\*\*|\[.*?\]\(.*?\))/g;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > currentIndex) {
-      parts.push({ text: text.slice(currentIndex, match.index), bold: false, link: null });
+// Return if match = bold
+function parseBold(match) {
+    if (match.startsWith("**") && match.endsWith("**")) {
+        return { text: match.slice(2, -2), bold: true, link: null };
     }
-
-    if (match[0].startsWith("**")) {
-      parts.push({ text: match[0].slice(2, -2), bold: true, link: null });
-    } else {
-      const linkMatch = match[0].match(/\[(.*?)\]\((.*?)\)/);
-      if (linkMatch) {
-        parts.push({ text: linkMatch[1], bold: false, link: linkMatch[2] });
-      }
-    }
-
-    currentIndex = regex.lastIndex;
-  }
-
-  if (currentIndex < text.length) {
-    parts.push({ text: text.slice(currentIndex), bold: false, link: null });
-  }
-
-  return parts;
+    return null;
 }
+
+// Return if match = link
+function parseLink(match) {
+    const linkMatch = match.match(/\[(.*?)\]\((.*?)\)/);
+    if (linkMatch) {
+        return { text: linkMatch[1], bold: false, link: linkMatch[2] };
+    }
+    return null;
+}
+
+// Main function that parses text
+function parseFormattedText(text) {
+    const parts = [];
+    let currentIndex = 0;
+    const regex = /(\*\*.*?\*\*|\[.*?\]\(.*?\))/g;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > currentIndex) {
+            parts.push({ text: text.slice(currentIndex, match.index), bold: false, link: null });
+        }
+
+        const parsedBold = parseBold(match[0]);
+        const parsedLink = parseLink(match[0]);
+
+        if (parsedBold) {
+            parts.push(parsedBold);
+        } else if (parsedLink) {
+            parts.push(parsedLink);
+        }
+
+        currentIndex = regex.lastIndex;
+    }
+
+    if (currentIndex < text.length) {
+        parts.push({ text: text.slice(currentIndex), bold: false, link: null });
+    }
+
+    return parts;
+}
+
 
 async function createFormattedTextNode(content, fontSize, defaultBold, x, y) {
   const textNode = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+  await figma.loadFontAsync({ family: FONT_FAMILY, style: "Regular" });
+  await figma.loadFontAsync({ family: FONT_FAMILY, style: "Bold" });
 
   textNode.fontSize = fontSize;
   textNode.x = x;
@@ -75,7 +88,7 @@ async function createFormattedTextNode(content, fontSize, defaultBold, x, y) {
 
     textNode.insertCharacters(currentIndex, part.text);
     textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
-      family: "Inter",
+      family: FONT_FAMILY,
       style: part.bold || defaultBold ? "Bold" : "Regular",
     });
 

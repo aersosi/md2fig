@@ -1,9 +1,9 @@
 {
-  "name": "Classic Resume",
+  "name": "md2fig",
   "id": "1438944668282665004",
   "api": "1.0.0",
-  "main": "code.js",
-  "ui": "ui.html",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {

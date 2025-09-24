@@ -20,7 +20,18 @@ A Figma plugin that transforms Markdown-formatted text into a professionally des
    git clone https://github.com/t1c1/md2fig.git
    ```
 
-2. **Load into Figma:**
+2. **Build the Plugin:**
+   ```bash
+   npm install
+   npm run build
+   ```
+
+   For development with auto-rebuild:
+   ```bash
+   npm run watch
+   ```
+
+3. **Load into Figma:**
    - Open Figma.
    - Navigate to Plugins > Development > Import Plugin from Manifest...
    - Select the manifest.json file from the cloned repository.
