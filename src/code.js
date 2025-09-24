@@ -97,8 +97,8 @@ class ResumeBuilder {
         return textNode;
     }
 
-    async addTextElement(content, fontSize, isBold, spaceBefore = 0, spaceAfter = 4) {
-        this.yOffset += spaceBefore;
+    async addTextElement(content, fontSize, isBold, marginTop = 0, marginBottom = 4) {
+        this.yOffset += marginTop;
 
         const textNode = await this.createFormattedTextNode(content, fontSize, isBold);
 
@@ -110,7 +110,7 @@ class ResumeBuilder {
         }
 
         this.currentPage.appendChild(textNode);
-        this.yOffset += textNode.height + spaceAfter;
+        this.yOffset += textNode.height + marginBottom;
     }
 
     async processParagraph(lines) {
@@ -204,8 +204,8 @@ figma.ui.onmessage = async (msg) => {
                             parsed.content,
                             parsed.config.fontSize,
                             parsed.config.isBold,
-                            parsed.config.spaceBefore,
-                            parsed.config.spaceAfter
+                            parsed.config.marginTop,
+                            parsed.config.marginBottom
                         );
                 }
             }
