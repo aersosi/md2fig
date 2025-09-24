@@ -8,14 +8,35 @@
 <!--<h1 class="font-base">md_2_fig</h1>-->
 
 <div class="card">
-    <div class="grid">
-        <label class="font-sm font-bold" for="dpi-select">Resolution</label>
-        <select class="radius-base px-xs" id="dpi-select">
-            <option value="72">72 DPI (Web)</option>
-            <option value="96" selected>96 DPI (Standard)</option>
-            <option value="150">150 DPI (Medium Print)</option>
-            <option value="300">300 DPI (High Print)</option>
-        </select>
+    <div class="flex gap-base">
+        <div class="grid w-full">
+            <label class="font-sm font-bold" for="format-select">Page Format</label>
+            <select class="radius-base px-xs" id="format-select">
+                <optgroup label="ISO Standard">
+                    <option value="a4" selected>A4 - 210 × 297 mm</option>
+                    <option value="a3">A3 - 297 × 420 mm</option>
+                </optgroup>
+                <optgroup label="US Standard">
+                    <option value="letter">Letter - 8.5 × 11 in</option>
+                    <option value="legal">Legal - 8.5 × 14 in</option>
+                    <option value="tabloid">Tabloid - 11 × 17 in</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="grid w-full">
+            <label class="font-sm font-bold" for="dpi-select">Resolution</label>
+            <select class="radius-base px-xs" id="dpi-select">
+                <optgroup label="Web">
+                    <option value="72">72 DPI</option>
+                    <option value="96" selected>96 DPI</option>
+                </optgroup>
+                <optgroup label="Print">
+                    <option value="122">122 DPI</option>
+                    <option value="150">150 DPI</option>
+                    <option value="300">300 DPI</option>
+                </optgroup>
+            </select>
+        </div>
     </div>
     <div class="grid font-mono">
         <label class="font-sm font-bold" for="markdown-input">Content</label>
@@ -31,12 +52,13 @@
     document.getElementById('generate').onclick = () => {
         const markdown = document.getElementById('markdown-input').value.trim();
         const dpi = parseInt(document.getElementById('dpi-select').value);
+        const pageFormat = document.getElementById('format-select').value;
         if (!markdown) {
             document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
             return;
         }
         document.getElementById('error-message').textContent = '';
-        parent.postMessage({pluginMessage: {type: 'create-resume', markdown, dpi}}, '*');
+        parent.postMessage({pluginMessage: {type: 'create-resume', markdown, dpi, pageFormat}}, '*');
     };
 
     onmessage = (event) => {

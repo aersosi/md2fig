@@ -127,7 +127,8 @@ figma.ui.onmessage = async (msg) => {
     if (msg.type === "create-resume") {
         try {
             const dpi = msg.dpi || 96;
-            const dimensions = getPageDimensions(dpi);
+            const pageFormat = msg.pageFormat || 'letter';
+            const dimensions = getPageDimensions(dpi, pageFormat);
             const lines = msg.markdown.split("\n");
             let yOffset = dimensions.MARGIN;
             let pageNumber = 1;

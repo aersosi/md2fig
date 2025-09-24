@@ -158,3 +158,31 @@
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
 }
+
+.flex {
+    display: flex;
+}
+
+.gap-xs {
+    gap: 0.25rem;
+}
+
+.gap-sm {
+    gap: 0.5rem;
+}
+
+.gap-base {
+    gap: 0.75rem;
+}
+
+.gap-lg {
+    gap: 1rem;
+}
+
+.gap-xl {
+    gap: 1.25rem;
+}
+
+.gap-2xl {
+    gap: 1.5rem;
+}
