@@ -186,3 +186,7 @@
 .gap-2xl {
     gap: 1.5rem;
 }
+
+.bg-white {
+    background-color: white;
+}
