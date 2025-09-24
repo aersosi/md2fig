@@ -1,89 +1,97 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 20px;
-      margin: 0;
-    }
-    .container {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      max-width: 600px;
-      margin: 0 auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    label {
-      font-weight: bold;
-    }
-    textarea {
-      width: 100%;
-      height: 200px;
-      resize: vertical;
-      padding: 12px;
-      font-family: monospace;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      line-height: 1.5;
-    }
-    button {
-      background: #007bfc;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 5px;
-      font-size: 16px;
-      cursor: pointer;
-      align-self: center;
-    }
-    button:hover {
-      background: #005bb5;
-    }
-    .error-message {
-      color: red;
-      font-size: 14px;
-      margin-top: -8px;
-    }
-  </style>
+    <title>md2fig</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            resize: vertical;
+            padding: 12px;
+            font-family: monospace;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+
+        button {
+            background: #007bfc;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            align-self: center;
+        }
+
+        button:hover {
+            background: #005bb5;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: -8px;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Markdown to Figma</h2>
+<div class="container">
+    <h2>Markdown to Figma 666</h2>
     <div class="field">
-      <label for="markdown-input">Paste your Markdown content:</label>
-      <textarea id="markdown-input" placeholder="Paste your Markdown here..."></textarea>
+        <label for="markdown-input">Paste your Markdown content:</label>
+        <textarea id="markdown-input" placeholder="Paste your Markdown here..."></textarea>
     </div>
     <button id="generate">Generate Output</button>
     <div class="error-message" id="error-message"></div>
-  </div>
+</div>
 
-  <script>
+<script>
     document.getElementById('generate').onclick = () => {
-      const markdown = document.getElementById('markdown-input').value.trim();
-      if (!markdown) {
-        document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
-        return;
-      }
-      document.getElementById('error-message').textContent = '';
-      parent.postMessage({ pluginMessage: { type: 'create-resume', markdown } }, '*');
+        const markdown = document.getElementById('markdown-input').value.trim();
+        if (!markdown) {
+            document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
+            return;
+        }
+        document.getElementById('error-message').textContent = '';
+        parent.postMessage({pluginMessage: {type: 'create-resume', markdown}}, '*');
     };
 
     onmessage = (event) => {
-      if (event.data.pluginMessage.type === 'error') {
-        document.getElementById('error-message').textContent = 'Error: ' + event.data.pluginMessage.message;
-      }
+        if (event.data.pluginMessage.type === 'error') {
+            document.getElementById('error-message').textContent = 'Error: ' + event.data.pluginMessage.message;
+        }
     };
-  </script>
+</script>
 </body>
 </html>

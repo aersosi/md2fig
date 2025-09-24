@@ -1,12 +1,7 @@
 // Show the UI
 figma.showUI(__html__, { width: 400, height: 500 });
 
-// Constants for page dimensions and margins
-const PAGE_WIDTH = 8.5 * 96; // Standard US Letter size width in pixels
-const PAGE_HEIGHT = 11 * 96; // Standard US Letter size height in pixels
-const MARGIN = 0.5 * 96; // Half-inch margin in pixels
-const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
-const PAGE_GAP = 20; // Gap between pages
+import { PAGE_WIDTH, PAGE_HEIGHT, MARGIN, CONTENT_WIDTH, PAGE_GAP }  from "./_constants.js";
 
 async function createTextNode(content, fontSize, isBold, x, y) {
   const textNode = figma.createText();
@@ -26,36 +21,54 @@ async function createTextNode(content, fontSize, isBold, x, y) {
   return textNode;
 }
 
-// Function to parse bold text and links
-function parseFormattedText(text) {
-  const parts = [];
-  let currentIndex = 0;
-  const regex = /(\*\*.*?\*\*|\[.*?\]\(.*?\))/g;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > currentIndex) {
-      parts.push({ text: text.slice(currentIndex, match.index), bold: false, link: null });
+// Prüft, ob ein Match fett formatiert ist und gibt das Ergebnis zurück
+function parseBold(match) {
+    if (match.startsWith("**") && match.endsWith("**")) {
+        return { text: match.slice(2, -2), bold: true, link: null };
     }
-
-    if (match[0].startsWith("**")) {
-      parts.push({ text: match[0].slice(2, -2), bold: true, link: null });
-    } else {
-      const linkMatch = match[0].match(/\[(.*?)\]\((.*?)\)/);
-      if (linkMatch) {
-        parts.push({ text: linkMatch[1], bold: false, link: linkMatch[2] });
-      }
-    }
-
-    currentIndex = regex.lastIndex;
-  }
-
-  if (currentIndex < text.length) {
-    parts.push({ text: text.slice(currentIndex), bold: false, link: null });
-  }
-
-  return parts;
+    return null;
 }
+
+// Prüft, ob ein Match ein Link ist und gibt das Ergebnis zurück
+function parseLink(match) {
+    const linkMatch = match.match(/\[(.*?)\]\((.*?)\)/);
+    if (linkMatch) {
+        return { text: linkMatch[1], bold: false, link: linkMatch[2] };
+    }
+    return null;
+}
+
+// Hauptfunktion, die Text parst und Subfunktionen nutzt
+function parseFormattedText(text) {
+    const parts = [];
+    let currentIndex = 0;
+    const regex = /(\*\*.*?\*\*|\[.*?\]\(.*?\))/g;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > currentIndex) {
+            parts.push({ text: text.slice(currentIndex, match.index), bold: false, link: null });
+        }
+
+        const parsedBold = parseBold(match[0]);
+        const parsedLink = parseLink(match[0]);
+
+        if (parsedBold) {
+            parts.push(parsedBold);
+        } else if (parsedLink) {
+            parts.push(parsedLink);
+        }
+
+        currentIndex = regex.lastIndex;
+    }
+
+    if (currentIndex < text.length) {
+        parts.push({ text: text.slice(currentIndex), bold: false, link: null });
+    }
+
+    return parts;
+}
+
 
 async function createFormattedTextNode(content, fontSize, defaultBold, x, y) {
   const textNode = figma.createText();

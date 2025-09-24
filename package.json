@@ -1,0 +1,25 @@
+{
+  "name": "md2fig",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "![Plugin Icon](assets/icon.png)",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aersosi/md2fig.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aersosi/md2fig/issues"
+  },
+  "homepage": "https://github.com/aersosi/md2fig#readme",
+  "devDependencies": {
+    "esbuild": "^0.25.10"
+  }
+}
