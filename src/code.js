@@ -1,126 +1,152 @@
 import { FONT_FAMILY, getPageDimensions, PLUGIN_UI_HEIGHT, PLUGIN_UI_WIDTH } from "./_constants.js";
-import { parseLink, parseMedium, parseBold } from "./_helpers.js"
-// Show UI
+import { parseFormattedText } from "./_helpers.js"
+
 figma.showUI(__html__, {width: PLUGIN_UI_WIDTH, height: PLUGIN_UI_HEIGHT});
 
-async function createTextNode(content, fontSize, isBold, x, y, dimensions) {
-    const textNode = figma.createText();
-    await figma.loadFontAsync({family: FONT_FAMILY, style: isBold ? "Bold" : "Regular"});
-    textNode.fontName = {family: FONT_FAMILY, style: isBold ? "Bold" : "Regular"};
-    textNode.fontSize = fontSize;
-    textNode.x = x;
-    textNode.y = y;
-    textNode.textAutoResize = "WIDTH_AND_HEIGHT";
-    textNode.characters = content;
-
-    if (textNode.width > dimensions.CONTENT_WIDTH) {
-        textNode.textAutoResize = "HEIGHT";
-        textNode.resize(dimensions.CONTENT_WIDTH, textNode.height);
+class ResumeBuilder {
+    constructor(dimensions) {
+        this.dimensions = dimensions;
+        this.yOffset = dimensions.PADDING;
+        this.pageNumber = 1;
+        this.xPosition = 0;
+        this.currentPage = this.createNewPage();
+        this.allPages = [this.currentPage];
+        this.fontsLoaded = false;
     }
 
-    return textNode;
+    async loadFonts() {
+        if (this.fontsLoaded) return;
+
+        await Promise.all([
+            figma.loadFontAsync({family: FONT_FAMILY, style: "Regular"}),
+            figma.loadFontAsync({family: FONT_FAMILY, style: "Semi Bold"}),
+            figma.loadFontAsync({family: FONT_FAMILY, style: "Bold"})
+        ]);
+
+        this.fontsLoaded = true;
+    }
+
+    createNewPage() {
+        const page = figma.createFrame();
+        page.resize(this.dimensions.PAGE_WIDTH, this.dimensions.PAGE_HEIGHT);
+        page.x = this.xPosition;
+        page.y = 0;
+        page.fills = [{type: "SOLID", color: {r: 1, g: 1, b: 1}}];
+        page.name = `Resume Page ${this.pageNumber}`;
+        return page;
+    }
+
+    checkAndCreateNewPage(textHeight) {
+        if (this.yOffset + textHeight + this.dimensions.PADDING > this.dimensions.PAGE_HEIGHT) {
+            this.pageNumber += 1;
+            this.xPosition += this.dimensions.PAGE_WIDTH + this.dimensions.PAGE_GAP;
+            this.currentPage = this.createNewPage();
+            this.allPages.push(this.currentPage);
+            this.yOffset = this.dimensions.PADDING;
+            return true;
+        }
+        return false;
+    }
+
+    async createFormattedTextNode(content, fontSize, isBold) {
+        const textNode = figma.createText();
+        textNode.fontSize = fontSize;
+        textNode.x = this.dimensions.PADDING;
+        textNode.y = this.yOffset;
+        textNode.textAutoResize = "WIDTH_AND_HEIGHT";
+
+        const parts = parseFormattedText(content);
+        let currentIndex = 0;
+
+        for (const part of parts) {
+            if (part.text.length === 0) continue;
+
+            textNode.insertCharacters(currentIndex, part.text);
+
+            let fontStyle = "Regular";
+            if (part.bold || isBold) {
+                fontStyle = "Bold";
+            } else if (part.medium) {
+                fontStyle = "Semi Bold";
+            }
+
+            textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
+                family: FONT_FAMILY,
+                style: fontStyle,
+            });
+
+            if (part.link) {
+                textNode.setRangeHyperlink(currentIndex, currentIndex + part.text.length, {
+                    type: "URL",
+                    value: part.link
+                });
+                textNode.setRangeFills(currentIndex, currentIndex + part.text.length, [{
+                    type: "SOLID",
+                    color: {r: 0, g: 0, b: 1}
+                }]);
+            }
+
+            currentIndex += part.text.length;
+        }
+
+        if (textNode.width > this.dimensions.CONTENT_WIDTH) {
+            textNode.textAutoResize = "HEIGHT";
+            textNode.resize(this.dimensions.CONTENT_WIDTH, textNode.height);
+        }
+
+        return textNode;
+    }
+
+    async addTextElement(content, fontSize, isBold, spaceBefore = 0, spaceAfter = 4) {
+        this.yOffset += spaceBefore;
+
+        const textNode = await this.createFormattedTextNode(content, fontSize, isBold);
+
+        // Check if we need a new page and update position if so
+        const newPage = this.checkAndCreateNewPage(textNode.height);
+        if (newPage) {
+            textNode.x = this.dimensions.PADDING;
+            textNode.y = this.yOffset;
+        }
+
+        this.currentPage.appendChild(textNode);
+        this.yOffset += textNode.height + spaceAfter;
+    }
+
+    async processParagraph(lines) {
+        if (lines.length === 0) return;
+
+        const content = lines.join(" ");
+        await this.addTextElement(content, 10, false, 2, 4);
+    }
+
+    finish() {
+        figma.viewport.scrollAndZoomIntoView(this.allPages);
+        figma.closePlugin();
+    }
 }
 
+// Markdown element configurations
+const MARKDOWN_ELEMENTS = {
+    'h1': { regex: /^#\s+(.*)$/, fontSize: 24, isBold: true, spaceBefore: 10, spaceAfter: 4 },
+    'h2': { regex: /^##\s+(.*)$/, fontSize: 18, isBold: true, spaceBefore: 10, spaceAfter: 4 },
+    'h3': { regex: /^###\s+(.*)$/, fontSize: 14, isBold: true, spaceBefore: 8, spaceAfter: 4 },
+    'h4': { regex: /^####\s+(.*)$/, fontSize: 12, isBold: true, spaceBefore: 6, spaceAfter: 4 },
+    'list': { regex: /^-\s+(.*)$/, fontSize: 10, isBold: false, spaceBefore: 4, spaceAfter: 4, prefix: '• ' }
+};
 
-// Main function that parses text
-function parseFormattedText(text) {
-    const parts = [];
-    let currentIndex = 0;
-    // Wichtig: ** muss vor * kommen, damit Bold vor Medium gematched wird
-    const regex = /(\*\*.*?\*\*|\[.*?\]\(.*?\)|\*[^*].*?[^*]\*)/g;
-    let match;
+function parseMarkdownLine(line) {
+    if (line.trim() === "") return { type: 'empty' };
 
-    while ((match = regex.exec(text)) !== null) {
-        if (match.index > currentIndex) {
-            parts.push({text: text.slice(currentIndex, match.index), bold: false, medium: false, link: null});
+    for (const [type, config] of Object.entries(MARKDOWN_ELEMENTS)) {
+        const match = line.match(config.regex);
+        if (match) {
+            const content = type === 'list' ? config.prefix + match[1] : match[1];
+            return { type, content, config };
         }
-
-        const parsedBold = parseBold(match[0]);
-        const parsedLink = parseLink(match[0]);
-        const parsedMedium = parseMedium(match[0]);
-
-        if (parsedBold) {
-            parts.push(parsedBold);
-        } else if (parsedLink) {
-            parts.push(parsedLink);
-        } else if (parsedMedium) {
-            parts.push(parsedMedium);
-        } else {
-            // Fallback: wenn nichts matched, als normalen Text behandeln
-            parts.push({text: match[0], bold: false, medium: false, link: null});
-        }
-
-        currentIndex = regex.lastIndex;
     }
 
-    if (currentIndex < text.length) {
-        parts.push({text: text.slice(currentIndex), bold: false, medium: false, link: null});
-    }
-
-    return parts;
-}
-
-
-async function createFormattedTextNode(content, fontSize, defaultBold, x, y, dimensions) {
-    const textNode = figma.createText();
-    await figma.loadFontAsync({family: FONT_FAMILY, style: "Regular"});
-    await figma.loadFontAsync({family: FONT_FAMILY, style: "Semi Bold"});
-    await figma.loadFontAsync({family: FONT_FAMILY, style: "Bold"});
-
-    textNode.fontSize = fontSize;
-    textNode.x = x;
-    textNode.y = y;
-    textNode.textAutoResize = "WIDTH_AND_HEIGHT";
-
-    const parts = parseFormattedText(content);
-    let currentIndex = 0;
-
-    for (const part of parts) {
-        if (part.text.length === 0) continue; // Skip empty parts
-
-        textNode.insertCharacters(currentIndex, part.text);
-
-        // Determine font style based on formatting
-        let fontStyle = "Regular";
-        if (part.bold || defaultBold) {
-            fontStyle = "Bold";
-        } else if (part.medium) {
-            fontStyle = "Semi Bold";
-        }
-
-        textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
-            family: FONT_FAMILY,
-            style: fontStyle,
-        });
-
-        if (part.link) {
-            textNode.setRangeHyperlink(currentIndex, currentIndex + part.text.length, {type: "URL", value: part.link});
-            textNode.setRangeFills(currentIndex, currentIndex + part.text.length, [{
-                type: "SOLID",
-                color: {r: 0, g: 0, b: 1}
-            }]); // Blue color for links
-        }
-
-        currentIndex += part.text.length;
-    }
-
-    if (textNode.width > dimensions.CONTENT_WIDTH) {
-        textNode.textAutoResize = "HEIGHT";
-        textNode.resize(dimensions.CONTENT_WIDTH, textNode.height);
-    }
-
-    return textNode;
-}
-
-// Function to create a new page/frame
-function createNewPage(pageNumber, xPosition, dimensions) {
-    const page = figma.createFrame();
-    page.resize(dimensions.PAGE_WIDTH, dimensions.PAGE_HEIGHT);
-    page.x = xPosition;
-    page.y = 0;
-    page.fills = [{type: "SOLID", color: {r: 1, g: 1, b: 1}}];
-    page.name = `Resume Page ${pageNumber}`;
-    return page;
+    return { type: 'paragraph', content: line };
 }
 
 figma.ui.onmessage = async (msg) => {
@@ -131,275 +157,49 @@ figma.ui.onmessage = async (msg) => {
             const padding = msg.padding || 5;
             const dimensions = getPageDimensions(dpi, pageFormat, padding);
             const lines = msg.markdown.split("\n");
-            let yOffset = dimensions.PADDING;
-            let pageNumber = 1;
-            let xPosition = 0;
 
-            // Create the first page/frame
-            let currentPage = createNewPage(pageNumber, xPosition, dimensions);
-            let allPages = [currentPage];
-            
-            // Variables for paragraph handling
+            const builder = new ResumeBuilder(dimensions);
+            await builder.loadFonts();
+
             let paragraphLines = [];
-            let paragraphFontSize = 10;
-            let paragraphIsBold = false;
-            
-            // Function to check if a line is a block separator
-            const isBlockSeparator = (line) => {
-                return line.startsWith("#") || 
-                       line.startsWith("-") || 
-                       line.trim() === "";
-            };
-            
-            // Function to process accumulated paragraph lines
-            const processParagraph = async () => {
-                if (paragraphLines.length === 0) return;
-                
-                const content = paragraphLines.join(" ");
-                
-                // Create the text node with formatted content
-                const textNode = await createFormattedTextNode(
-                    content,
-                    paragraphFontSize,
-                    paragraphIsBold,
-                    dimensions.PADDING,
-                    yOffset,
-                    dimensions
-                );
-                
-                // Check if adding this text node exceeds the page height
-                if (yOffset + textNode.height + dimensions.PADDING > dimensions.PAGE_HEIGHT) {
-                    // Create a new page and reset yOffset
-                    pageNumber += 1;
-                    xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
-                    currentPage = createNewPage(pageNumber, xPosition, dimensions);
-                    allPages.push(currentPage);
-                    yOffset = dimensions.PADDING;
-                    
-                    // Update the position of the text node
-                    textNode.x = dimensions.PADDING;
-                    textNode.y = yOffset;
+
+            const processPendingParagraph = async () => {
+                if (paragraphLines.length > 0) {
+                    await builder.processParagraph(paragraphLines);
+                    paragraphLines = [];
                 }
-                
-                // Append the text node to the current page
-                currentPage.appendChild(textNode);
-                yOffset += textNode.height + 4;
-                
-                // Reset paragraph collection
-                paragraphLines = [];
             };
 
             for (const line of lines) {
-                if (line.trim() === "") {
-                    // Process any accumulated paragraph lines before the empty line
-                    await processParagraph();
-                    yOffset += 8; // Add space for empty lines
-                    continue;
-                }
+                const parsed = parseMarkdownLine(line);
 
-                let fontSize = 10;
-                let isBold = false;
-                let content = line;
+                switch (parsed.type) {
+                    case 'empty':
+                        await processPendingParagraph();
+                        builder.yOffset += 8;
+                        break;
 
-                // Handle different Markdown headers and list items
-                if (line.startsWith("#### ")) {
-                    // Process any accumulated paragraph lines before the header
-                    await processParagraph();
-                    
-                    fontSize = 12;
-                    isBold = true;
-                    content = line.replace(/^####\s*/, "");
-                    yOffset += 6;
-                    
-                    // Create the text node for the header
-                    const textNode = await createFormattedTextNode(
-                        content,
-                        fontSize,
-                        isBold,
-                        dimensions.PADDING,
-                        yOffset,
-                        dimensions
-                    );
-                    
-                    // Check if adding this text node exceeds the page height
-                    if (yOffset + textNode.height + dimensions.PADDING > dimensions.PAGE_HEIGHT) {
-                        // Create a new page and reset yOffset
-                        pageNumber += 1;
-                        xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
-                        currentPage = createNewPage(pageNumber, xPosition, dimensions);
-                        allPages.push(currentPage);
-                        yOffset = dimensions.PADDING;
-                        
-                        // Update the position of the text node
-                        textNode.x = dimensions.PADDING;
-                        textNode.y = yOffset;
-                    }
-                    
-                    // Append the text node to the current page
-                    currentPage.appendChild(textNode);
-                    yOffset += textNode.height + 4;
-                } else if (line.startsWith("# ")) {
-                    // Process any accumulated paragraph lines before the header
-                    await processParagraph();
-                    
-                    fontSize = 24;
-                    isBold = true;
-                    content = line.replace(/^#\s*/, "");
-                    yOffset += 10;
-                    
-                    // Create the text node for the header
-                    const textNode = await createFormattedTextNode(
-                        content,
-                        fontSize,
-                        isBold,
-                        dimensions.PADDING,
-                        yOffset,
-                        dimensions
-                    );
-                    
-                    // Check if adding this text node exceeds the page height
-                    if (yOffset + textNode.height + dimensions.PADDING > dimensions.PAGE_HEIGHT) {
-                        // Create a new page and reset yOffset
-                        pageNumber += 1;
-                        xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
-                        currentPage = createNewPage(pageNumber, xPosition, dimensions);
-                        allPages.push(currentPage);
-                        yOffset = dimensions.PADDING;
-                        
-                        // Update the position of the text node
-                        textNode.x = dimensions.PADDING;
-                        textNode.y = yOffset;
-                    }
-                    
-                    // Append the text node to the current page
-                    currentPage.appendChild(textNode);
-                    yOffset += textNode.height + 4;
-                } else if (line.startsWith("## ")) {
-                    // Process any accumulated paragraph lines before the header
-                    await processParagraph();
-                    
-                    fontSize = 18;
-                    isBold = true;
-                    yOffset += 10;
-                    content = line.replace(/^##\s*/, "");
-                    
-                    // Create the text node for the header
-                    const textNode = await createFormattedTextNode(
-                        content,
-                        fontSize,
-                        isBold,
-                        dimensions.PADDING,
-                        yOffset,
-                        dimensions
-                    );
-                    
-                    // Check if adding this text node exceeds the page height
-                    if (yOffset + textNode.height + dimensions.PADDING > dimensions.PAGE_HEIGHT) {
-                        // Create a new page and reset yOffset
-                        pageNumber += 1;
-                        xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
-                        currentPage = createNewPage(pageNumber, xPosition, dimensions);
-                        allPages.push(currentPage);
-                        yOffset = dimensions.PADDING;
-                        
-                        // Update the position of the text node
-                        textNode.x = dimensions.PADDING;
-                        textNode.y = yOffset;
-                    }
-                    
-                    // Append the text node to the current page
-                    currentPage.appendChild(textNode);
-                    yOffset += textNode.height + 4;
-                } else if (line.startsWith("### ")) {
-                    // Process any accumulated paragraph lines before the header
-                    await processParagraph();
-                    
-                    fontSize = 14;
-                    isBold = true;
-                    yOffset += 8;
-                    content = line.replace(/^###\s*/, "");
-                    
-                    // Create the text node for the header
-                    const textNode = await createFormattedTextNode(
-                        content,
-                        fontSize,
-                        isBold,
-                        dimensions.PADDING,
-                        yOffset,
-                        dimensions
-                    );
-                    
-                    // Check if adding this text node exceeds the page height
-                    if (yOffset + textNode.height + dimensions.PADDING > dimensions.PAGE_HEIGHT) {
-                        // Create a new page and reset yOffset
-                        pageNumber += 1;
-                        xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
-                        currentPage = createNewPage(pageNumber, xPosition, dimensions);
-                        allPages.push(currentPage);
-                        yOffset = dimensions.PADDING;
-                        
-                        // Update the position of the text node
-                        textNode.x = dimensions.PADDING;
-                        textNode.y = yOffset;
-                    }
-                    
-                    // Append the text node to the current page
-                    currentPage.appendChild(textNode);
-                    yOffset += textNode.height + 4;
-                } else if (line.startsWith("- ")) {
-                    // Process any accumulated paragraph lines before the list item
-                    await processParagraph();
-                    
-                    fontSize = 10;
-                    content = "• " + line.replace(/^-+\s*/, "");
-                    yOffset += 4;
-                    
-                    // Create the text node for the list item
-                    const textNode = await createFormattedTextNode(
-                        content,
-                        fontSize,
-                        isBold,
-                        dimensions.PADDING,
-                        yOffset,
-                        dimensions
-                    );
-                    
-                    // Check if adding this text node exceeds the page height
-                    if (yOffset + textNode.height + dimensions.PADDING > dimensions.PAGE_HEIGHT) {
-                        // Create a new page and reset yOffset
-                        pageNumber += 1;
-                        xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
-                        currentPage = createNewPage(pageNumber, xPosition, dimensions);
-                        allPages.push(currentPage);
-                        yOffset = dimensions.PADDING;
-                        
-                        // Update the position of the text node
-                        textNode.x = dimensions.PADDING;
-                        textNode.y = yOffset;
-                    }
-                    
-                    // Append the text node to the current page
-                    currentPage.appendChild(textNode);
-                    yOffset += textNode.height + 4;
-                } else {
-                    // This is a regular paragraph line, add it to the current paragraph
-                    if (paragraphLines.length === 0) {
-                        // This is the first line of a new paragraph
-                        paragraphFontSize = 10;
-                        paragraphIsBold = isBold;
-                        yOffset += 2;
-                    }
-                    
-                    paragraphLines.push(content);
+                    case 'paragraph':
+                        paragraphLines.push(parsed.content);
+                        break;
+
+                    default: // headers and lists
+                        await processPendingParagraph();
+                        await builder.addTextElement(
+                            parsed.content,
+                            parsed.config.fontSize,
+                            parsed.config.isBold,
+                            parsed.config.spaceBefore,
+                            parsed.config.spaceAfter
+                        );
                 }
             }
 
-            // Process any remaining paragraph lines at the end of the document
-            await processParagraph();
-            
-            // Scroll and zoom into all pages
-            figma.viewport.scrollAndZoomIntoView(allPages);
-            figma.closePlugin();
+            // Process any remaining paragraph lines
+            await processPendingParagraph();
+
+            builder.finish();
+
         } catch (error) {
             console.error("An error occurred:", error);
             figma.ui.postMessage({type: "error", message: error.message});
