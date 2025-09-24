@@ -2,86 +2,14 @@
 <html lang="en">
 <head>
     <title>md2fig</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-            margin: 0;
-        }
-
-        .container {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .field {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        label {
-            font-weight: bold;
-        }
-
-        textarea {
-            width: 100%;
-            height: 200px;
-            resize: vertical;
-            padding: 12px;
-            font-family: monospace;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            line-height: 1.5;
-        }
-
-        button {
-            background: #007bfc;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            align-self: center;
-        }
-
-        button:hover {
-            background: #005bb5;
-        }
-
-        select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .error-message {
-            color: red;
-            font-size: 14px;
-            margin-top: -8px;
-        }
-
-        .check {
-            border: 1px solid red;
-        }
-    </style>
+    <link rel="stylesheet" href="index.css">
 </head>
 <body>
-<div class="container">
-    <h2>md_2_fig 666</h2>
-    <div class="field check">
-        <label for="dpi-select">Resolution (DPI):</label>
+<h1 class="font-base">md_2_fig</h1>
+
+<div class="card">
+    <div class="field">
+        <label class="font-sm font-bold" for="dpi-select">Resolution (DPI):</label>
         <select id="dpi-select">
             <option value="72">72 DPI (Web)</option>
             <option value="96" selected>96 DPI (Standard)</option>
@@ -90,12 +18,14 @@
         </select>
     </div>
     <div class="field">
-        <label for="markdown-input">Paste your Markdown content:</label>
+        <label class="font-sm font-bold" for="markdown-input">Paste your Markdown content:</label>
         <textarea id="markdown-input" placeholder="Paste your Markdown here..."></textarea>
     </div>
-    <button id="generate">Generate Output</button>
+
     <div class="error-message" id="error-message"></div>
 </div>
+<br>
+<button class="font-base font-bold" id="generate">Generate Output</button>
 
 <script>
     document.getElementById('generate').onclick = () => {

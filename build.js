@@ -15,19 +15,25 @@ async function build(watch = false) {
         sourcemap: true,
     });
 
-    // initial copy
-    copyHtml();
+    // initial build
+    buildHtml();
 
     if (watch) {
         console.log("👀 Watching for changes...");
-        await ctx.watch();
 
-        // Watch HTML separately
-        const htmlWatcher = chokidar.watch("src/ui.html");
-        htmlWatcher.on("change", () => {
-            console.log("📄 ui.html changed, copying...");
-            copyHtml();
+        // Watch HTML and CSS
+        const staticWatcher = chokidar.watch(
+            [path.resolve("src/ui.html"), path.resolve("src/index.css")],
+            { ignoreInitial: true }
+        );
+
+        staticWatcher.on("change", (filePath) => {
+            console.log(`📄 ${path.basename(filePath)} changed, rebuilding HTML...`);
+            buildHtml();
         });
+
+        // Watch JS with esbuild
+        await ctx.watch();
     } else {
         await ctx.rebuild();
         await ctx.dispose();
@@ -35,8 +41,20 @@ async function build(watch = false) {
     }
 }
 
-function copyHtml() {
-    fs.copyFileSync(path.resolve("src/ui.html"), path.resolve("dist/ui.html"));
+function buildHtml() {
+    const htmlPath = path.resolve("src/ui.html");
+    const cssPath = path.resolve("src/index.css");
+
+    let html = fs.readFileSync(htmlPath, "utf-8");
+    const css = fs.readFileSync(cssPath, "utf-8");
+
+    html = html.replace(
+        /<link rel=["']stylesheet["'] href=["']index\.css["']\s*\/?>/,
+        `<style>\n${css}\n</style>`
+    );
+
+    fs.writeFileSync(path.resolve("dist/ui.html"), html, "utf-8");
+    console.log("✅ Built ui.html with inline CSS");
 }
 
 const watchMode = process.argv.includes("--watch");
