@@ -120,6 +120,13 @@ class ResumeBuilder {
         await this.addTextElement(content, 10, false, 2, 4);
     }
 
+    async processList(listItems) {
+        if (listItems.length === 0) return;
+
+        const content = listItems.join("\n");
+        await this.addTextElement(content, 10, false, 4, 4);
+    }
+
     finish() {
         figma.viewport.scrollAndZoomIntoView(this.allPages);
         figma.closePlugin();
@@ -162,11 +169,19 @@ figma.ui.onmessage = async (msg) => {
             await builder.loadFonts();
 
             let paragraphLines = [];
+            let listItems = [];
 
             const processPendingParagraph = async () => {
                 if (paragraphLines.length > 0) {
                     await builder.processParagraph(paragraphLines);
                     paragraphLines = [];
+                }
+            };
+
+            const processPendingList = async () => {
+                if (listItems.length > 0) {
+                    await builder.processList(listItems);
+                    listItems = [];
                 }
             };
 
@@ -176,15 +191,23 @@ figma.ui.onmessage = async (msg) => {
                 switch (parsed.type) {
                     case 'empty':
                         await processPendingParagraph();
+                        await processPendingList();
                         builder.yOffset += 8;
                         break;
 
                     case 'paragraph':
+                        await processPendingList();
                         paragraphLines.push(parsed.content);
                         break;
 
-                    default: // headers and lists
+                    case 'list':
                         await processPendingParagraph();
+                        listItems.push(parsed.content);
+                        break;
+
+                    default: // headers
+                        await processPendingParagraph();
+                        await processPendingList();
                         await builder.addTextElement(
                             parsed.content,
                             parsed.config.fontSize,
@@ -195,8 +218,9 @@ figma.ui.onmessage = async (msg) => {
                 }
             }
 
-            // Process any remaining paragraph lines
+            // Process any remaining paragraph lines and list items
             await processPendingParagraph();
+            await processPendingList();
 
             builder.finish();
 
