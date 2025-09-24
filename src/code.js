@@ -1,12 +1,12 @@
-// Show the UI
-figma.showUI(__html__, { width: 400, height: 500 });
+import { PAGE_WIDTH, PAGE_HEIGHT, MARGIN, CONTENT_WIDTH, PAGE_GAP, PLUGIN_UI_WIDTH, PLUGIN_UI_HEIGHT, FONT_FAMILY }  from "./_constants.js";
 
-import { PAGE_WIDTH, PAGE_HEIGHT, MARGIN, CONTENT_WIDTH, PAGE_GAP }  from "./_constants.js";
+// Show UI
+figma.showUI(__html__, { width: PLUGIN_UI_WIDTH, height: PLUGIN_UI_HEIGHT });
 
 async function createTextNode(content, fontSize, isBold, x, y) {
   const textNode = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: isBold ? "Bold" : "Regular" });
-  textNode.fontName = { family: "Inter", style: isBold ? "Bold" : "Regular" };
+  await figma.loadFontAsync({ family: FONT_FAMILY, style: isBold ? "Bold" : "Regular" });
+  textNode.fontName = { family: FONT_FAMILY, style: isBold ? "Bold" : "Regular" };
   textNode.fontSize = fontSize;
   textNode.x = x;
   textNode.y = y;
@@ -21,7 +21,7 @@ async function createTextNode(content, fontSize, isBold, x, y) {
   return textNode;
 }
 
-// Prüft, ob ein Match fett formatiert ist und gibt das Ergebnis zurück
+// Return if match = bold
 function parseBold(match) {
     if (match.startsWith("**") && match.endsWith("**")) {
         return { text: match.slice(2, -2), bold: true, link: null };
@@ -29,7 +29,7 @@ function parseBold(match) {
     return null;
 }
 
-// Prüft, ob ein Match ein Link ist und gibt das Ergebnis zurück
+// Return if match = link
 function parseLink(match) {
     const linkMatch = match.match(/\[(.*?)\]\((.*?)\)/);
     if (linkMatch) {
@@ -38,7 +38,7 @@ function parseLink(match) {
     return null;
 }
 
-// Hauptfunktion, die Text parst und Subfunktionen nutzt
+// Main function that parses text
 function parseFormattedText(text) {
     const parts = [];
     let currentIndex = 0;
@@ -72,8 +72,8 @@ function parseFormattedText(text) {
 
 async function createFormattedTextNode(content, fontSize, defaultBold, x, y) {
   const textNode = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+  await figma.loadFontAsync({ family: FONT_FAMILY, style: "Regular" });
+  await figma.loadFontAsync({ family: FONT_FAMILY, style: "Bold" });
 
   textNode.fontSize = fontSize;
   textNode.x = x;
@@ -88,7 +88,7 @@ async function createFormattedTextNode(content, fontSize, defaultBold, x, y) {
 
     textNode.insertCharacters(currentIndex, part.text);
     textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
-      family: "Inter",
+      family: FONT_FAMILY,
       style: part.bold || defaultBold ? "Bold" : "Regular",
     });
 

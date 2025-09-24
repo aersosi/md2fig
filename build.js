@@ -1,13 +1,12 @@
-// build.js
 import esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
 
 async function build(watch = false) {
-    // Stelle sicher, dass "dist" existiert
+    // Check "./dist/" exists
     fs.mkdirSync("dist", { recursive: true });
 
-    // Plugin-Code bundeln
+    // bundle plugin-Code
     const ctx = await esbuild.context({
         entryPoints: ["src/code.js"],
         bundle: true,
@@ -17,7 +16,7 @@ async function build(watch = false) {
         sourcemap: true,
     });
 
-    // ui.html kopieren
+    // copy ui.html to "./dist/"
     fs.copyFileSync(path.resolve("src/ui.html"), path.resolve("dist/ui.html"));
 
     if (watch) {
@@ -26,7 +25,7 @@ async function build(watch = false) {
     } else {
         await ctx.rebuild();
         await ctx.dispose();
-        console.log("✅ Build fertig!");
+        console.log("✅ Build done!");
     }
 }
 
