@@ -128,9 +128,10 @@ figma.ui.onmessage = async (msg) => {
         try {
             const dpi = msg.dpi || 96;
             const pageFormat = msg.pageFormat || 'letter';
-            const dimensions = getPageDimensions(dpi, pageFormat);
+            const padding = msg.padding || 5;
+            const dimensions = getPageDimensions(dpi, pageFormat, padding);
             const lines = msg.markdown.split("\n");
-            let yOffset = dimensions.MARGIN;
+            let yOffset = dimensions.PADDING;
             let pageNumber = 1;
             let xPosition = 0;
 
@@ -182,22 +183,22 @@ figma.ui.onmessage = async (msg) => {
                     content,
                     fontSize,
                     isBold,
-                    dimensions.MARGIN,
+                    dimensions.PADDING,
                     yOffset,
                     dimensions
                 );
 
                 // Check if adding this text node exceeds the page height
-                if (yOffset + textNode.height + dimensions.MARGIN > dimensions.PAGE_HEIGHT) {
+                if (yOffset + textNode.height + dimensions.PADDING > dimensions.PAGE_HEIGHT) {
                     // Create a new page and reset yOffset
                     pageNumber += 1;
                     xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
                     currentPage = createNewPage(pageNumber, xPosition, dimensions);
                     allPages.push(currentPage);
-                    yOffset = dimensions.MARGIN;
+                    yOffset = dimensions.PADDING;
 
                     // Update the position of the text node
-                    textNode.x = dimensions.MARGIN;
+                    textNode.x = dimensions.PADDING;
                     textNode.y = yOffset;
                 }
 

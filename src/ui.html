@@ -38,6 +38,12 @@
             </select>
         </div>
     </div>
+    <div class="grid">
+        <label class="font-sm font-bold" for="padding-input">Padding (%)</label>
+        <input type="number" class="p-sm radius-base bg-white" id="padding-input"
+               value="5" min="0" max="20" step="0.5"
+               placeholder="5">
+    </div>
     <div class="grid font-mono">
         <label class="font-sm font-bold" for="markdown-input">Content</label>
         <textarea class="radius-base" id="markdown-input" placeholder="Paste your Markdown here"></textarea>
@@ -52,12 +58,13 @@
         const markdown = document.getElementById('markdown-input').value.trim();
         const dpi = parseInt(document.getElementById('dpi-select').value);
         const pageFormat = document.getElementById('format-select').value;
+        const padding = parseFloat(document.getElementById('padding-input').value) || 5;
         if (!markdown) {
             document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
             return;
         }
         document.getElementById('error-message').textContent = '';
-        parent.postMessage({pluginMessage: {type: 'create-resume', markdown, dpi, pageFormat}}, '*');
+        parent.postMessage({pluginMessage: {type: 'create-resume', markdown, dpi, pageFormat, padding}}, '*');
     };
 
     onmessage = (event) => {
