@@ -190,3 +190,11 @@
 .bg-white {
     background-color: white;
 }
+
+.overflow-x-auto {
+    overflow-x: auto;
+}
+
+.overflow-y-auto {
+    overflow-y: auto;
+}

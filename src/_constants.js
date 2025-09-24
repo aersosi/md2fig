@@ -1,5 +1,5 @@
 export const PLUGIN_UI_WIDTH = 480;
-export const PLUGIN_UI_HEIGHT = 560;
+export const PLUGIN_UI_HEIGHT = 480;
 
 // Page format definitions (width x height in inches)
 const PAGE_FORMATS = {

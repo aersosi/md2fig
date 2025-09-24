@@ -7,13 +7,6 @@ body {
     margin: 0;
 }
 
-.card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin: 0 auto;
-}
-
 .grid {
     display: grid;
     gap: 0.5rem;
@@ -46,7 +39,8 @@ select {
 }
 
 select {
-    appearance: none; /* removes native arrow */
+    /* remove native arrow an replace with custom*/
+    appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
 
