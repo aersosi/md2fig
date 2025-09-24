@@ -1,9 +1,9 @@
-import { PAGE_WIDTH, PAGE_HEIGHT, MARGIN, CONTENT_WIDTH, PAGE_GAP, PLUGIN_UI_WIDTH, PLUGIN_UI_HEIGHT, FONT_FAMILY }  from "./_constants.js";
+import { getPageDimensions, PLUGIN_UI_WIDTH, PLUGIN_UI_HEIGHT, FONT_FAMILY }  from "./_constants.js";
 
 // Show UI
 figma.showUI(__html__, { width: PLUGIN_UI_WIDTH, height: PLUGIN_UI_HEIGHT });
 
-async function createTextNode(content, fontSize, isBold, x, y) {
+async function createTextNode(content, fontSize, isBold, x, y, dimensions) {
   const textNode = figma.createText();
   await figma.loadFontAsync({ family: FONT_FAMILY, style: isBold ? "Bold" : "Regular" });
   textNode.fontName = { family: FONT_FAMILY, style: isBold ? "Bold" : "Regular" };
@@ -13,13 +13,15 @@ async function createTextNode(content, fontSize, isBold, x, y) {
   textNode.textAutoResize = "WIDTH_AND_HEIGHT";
   textNode.characters = content;
 
-  if (textNode.width > CONTENT_WIDTH) {
+  if (textNode.width > dimensions.CONTENT_WIDTH) {
     textNode.textAutoResize = "HEIGHT";
-    textNode.resize(CONTENT_WIDTH, textNode.height);
+    textNode.resize(dimensions.CONTENT_WIDTH, textNode.height);
   }
 
   return textNode;
 }
+
+console.log("test")
 
 // Return if match = bold
 function parseBold(match) {
@@ -70,7 +72,7 @@ function parseFormattedText(text) {
 }
 
 
-async function createFormattedTextNode(content, fontSize, defaultBold, x, y) {
+async function createFormattedTextNode(content, fontSize, defaultBold, x, y, dimensions) {
   const textNode = figma.createText();
   await figma.loadFontAsync({ family: FONT_FAMILY, style: "Regular" });
   await figma.loadFontAsync({ family: FONT_FAMILY, style: "Bold" });
@@ -100,18 +102,18 @@ async function createFormattedTextNode(content, fontSize, defaultBold, x, y) {
     currentIndex += part.text.length;
   }
 
-  if (textNode.width > CONTENT_WIDTH) {
+  if (textNode.width > dimensions.CONTENT_WIDTH) {
     textNode.textAutoResize = "HEIGHT";
-    textNode.resize(CONTENT_WIDTH, textNode.height);
+    textNode.resize(dimensions.CONTENT_WIDTH, textNode.height);
   }
 
   return textNode;
 }
 
 // Function to create a new page/frame
-function createNewPage(pageNumber, xPosition) {
+function createNewPage(pageNumber, xPosition, dimensions) {
   const page = figma.createFrame();
-  page.resize(PAGE_WIDTH, PAGE_HEIGHT);
+  page.resize(dimensions.PAGE_WIDTH, dimensions.PAGE_HEIGHT);
   page.x = xPosition;
   page.y = 0;
   page.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
@@ -122,13 +124,15 @@ function createNewPage(pageNumber, xPosition) {
 figma.ui.onmessage = async (msg) => {
   if (msg.type === "create-resume") {
     try {
+      const dpi = msg.dpi || 96;
+      const dimensions = getPageDimensions(dpi);
       const lines = msg.markdown.split("\n");
-      let yOffset = MARGIN;
+      let yOffset = dimensions.MARGIN;
       let pageNumber = 1;
       let xPosition = 0;
 
       // Create the first page/frame
-      let currentPage = createNewPage(pageNumber, xPosition);
+      let currentPage = createNewPage(pageNumber, xPosition, dimensions);
       let allPages = [currentPage];
 
       for (const line of lines) {
@@ -175,21 +179,22 @@ figma.ui.onmessage = async (msg) => {
           content,
           fontSize,
           isBold,
-          MARGIN,
-          yOffset
+          dimensions.MARGIN,
+          yOffset,
+          dimensions
         );
 
         // Check if adding this text node exceeds the page height
-        if (yOffset + textNode.height + MARGIN > PAGE_HEIGHT) {
+        if (yOffset + textNode.height + dimensions.MARGIN > dimensions.PAGE_HEIGHT) {
           // Create a new page and reset yOffset
           pageNumber += 1;
-          xPosition += PAGE_WIDTH + PAGE_GAP;
-          currentPage = createNewPage(pageNumber, xPosition);
+          xPosition += dimensions.PAGE_WIDTH + dimensions.PAGE_GAP;
+          currentPage = createNewPage(pageNumber, xPosition, dimensions);
           allPages.push(currentPage);
-          yOffset = MARGIN;
+          yOffset = dimensions.MARGIN;
 
           // Update the position of the text node
-          textNode.x = MARGIN;
+          textNode.x = dimensions.MARGIN;
           textNode.y = yOffset;
         }
 

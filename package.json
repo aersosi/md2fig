@@ -21,5 +21,8 @@
   "homepage": "https://github.com/aersosi/md2fig#readme",
   "devDependencies": {
     "esbuild": "^0.25.10"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3"
   }
 }

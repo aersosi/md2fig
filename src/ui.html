@@ -58,16 +58,37 @@
             background: #005bb5;
         }
 
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
         .error-message {
             color: red;
             font-size: 14px;
             margin-top: -8px;
         }
+
+        .check {
+            border: 1px solid red;
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <h2>Markdown to Figma 666</h2>
+    <h2>md_2_fig 666</h2>
+    <div class="field check">
+        <label for="dpi-select">Resolution (DPI):</label>
+        <select id="dpi-select">
+            <option value="72">72 DPI (Web)</option>
+            <option value="96" selected>96 DPI (Standard)</option>
+            <option value="150">150 DPI (Medium Print)</option>
+            <option value="300">300 DPI (High Print)</option>
+        </select>
+    </div>
     <div class="field">
         <label for="markdown-input">Paste your Markdown content:</label>
         <textarea id="markdown-input" placeholder="Paste your Markdown here..."></textarea>
@@ -79,12 +100,13 @@
 <script>
     document.getElementById('generate').onclick = () => {
         const markdown = document.getElementById('markdown-input').value.trim();
+        const dpi = parseInt(document.getElementById('dpi-select').value);
         if (!markdown) {
             document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
             return;
         }
         document.getElementById('error-message').textContent = '';
-        parent.postMessage({pluginMessage: {type: 'create-resume', markdown}}, '*');
+        parent.postMessage({pluginMessage: {type: 'create-resume', markdown, dpi}}, '*');
     };
 
     onmessage = (event) => {

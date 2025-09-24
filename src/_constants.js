@@ -1,14 +1,21 @@
 export const PLUGIN_UI_WIDTH = 400;
 export const PLUGIN_UI_HEIGHT = 500;
 
-const RESOLUTION_DPI = 96;
+// Function to calculate dimensions based on DPI
+export function getPageDimensions(dpi = 96) {
+    const PAGE_WIDTH = 8.5 * dpi; // Standard US Letter width (inch) in pixels
+    const PAGE_HEIGHT = 11 * dpi; // Standard US Letter height (inch) in pixels
+    const MARGIN = 0.5 * dpi; // Half-inch margin in pixels
+    const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
+    const PAGE_GAP = 20; // Gap between pages
 
-// Constants for page dimensions and margins
-export const PAGE_WIDTH = 8.5 * RESOLUTION_DPI; // Standard US Letter width (inch) in pixels
-export const PAGE_HEIGHT = 11 * RESOLUTION_DPI; // Standard US Letter height (inch) in pixels
-
-export const MARGIN = 0.5 * RESOLUTION_DPI; // Half-inch margin in pixels
-export const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
-export const PAGE_GAP = 20; // Gap between pages
+    return {
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+        MARGIN,
+        CONTENT_WIDTH,
+        PAGE_GAP
+    };
+}
 
 export const FONT_FAMILY = "Inter"
