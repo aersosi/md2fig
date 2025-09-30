@@ -60,7 +60,9 @@ class ResumeBuilder {
 
         const parts = parseFormattedText(content);
         let currentIndex = 0;
+        let linkParts = []; // Store link information for later processing
 
+        // First pass: insert text and apply basic formatting
         for (const part of parts) {
             if (part.text.length === 0) continue;
 
@@ -80,18 +82,29 @@ class ResumeBuilder {
                 style: fontStyle,
             });
 
+            // Store link info for later processing
             if (part.link) {
-                textNode.setRangeHyperlink(currentIndex, currentIndex + part.text.length, {
-                    type: "URL",
-                    value: part.link
+                linkParts.push({
+                    startIndex: currentIndex,
+                    endIndex: currentIndex + part.text.length,
+                    url: part.link,
+                    text: part.text
                 });
-                textNode.setRangeFills(currentIndex, currentIndex + part.text.length, [{
-                    type: "SOLID",
-                    color: {r: 0, g: 0, b: 1}
-                }]);
             }
 
             currentIndex += part.text.length;
+        }
+
+        // Second pass: apply hyperlinks after all text is inserted
+        for (const linkPart of linkParts) {
+            textNode.setRangeHyperlink(linkPart.startIndex, linkPart.endIndex, {
+                type: "URL",
+                value: linkPart.url
+            });
+            textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
+                type: "SOLID",
+                color: {r: 0, g: 0, b: 1}
+            }]);
         }
 
         if (textNode.width > this.dimensions.CONTENT_WIDTH) {
@@ -212,55 +225,70 @@ figma.ui.onmessage = async (msg) => {
                     formattedParts.push({ content, fontSize, isBold });
                 }
 
-                // Apply formatting to the text node
-                textNode.characters = formattedParts.map(part => part.content).join('\n');
-
-                let currentIndex = 0;
+                // First, process all content to remove markdown and get the actual text
+                let processedParts = [];
                 for (const part of formattedParts) {
                     if (part.content.length > 0) {
-                        // Set font size
-                        textNode.setRangeFontSize(currentIndex, currentIndex + part.content.length, part.fontSize);
-
-                        // Set font style (bold/regular)
-                        const fontStyle = part.isBold ? "Bold" : "Regular";
-                        textNode.setRangeFontName(currentIndex, currentIndex + part.content.length, {
-                            family: FONT_FAMILY,
-                            style: fontStyle,
-                        });
-
-                        // Apply inline formatting (bold, links, etc.)
                         const inlineParts = parseFormattedText(part.content);
-                        let inlineIndex = currentIndex;
                         for (const inlinePart of inlineParts) {
-                            if (inlinePart.text.length === 0) continue;
-
-                            let inlineFontStyle = part.isBold ? "Bold" : "Regular";
-                            if (inlinePart.bold) {
-                                inlineFontStyle = "Bold";
-                            } else if (inlinePart.medium) {
-                                inlineFontStyle = "Semi Bold";
-                            }
-
-                            textNode.setRangeFontName(inlineIndex, inlineIndex + inlinePart.text.length, {
-                                family: FONT_FAMILY,
-                                style: inlineFontStyle,
+                            processedParts.push({
+                                text: inlinePart.text,
+                                fontSize: part.fontSize,
+                                isBold: part.isBold || inlinePart.bold,
+                                isMedium: inlinePart.medium,
+                                link: inlinePart.link
                             });
-
-                            if (inlinePart.link) {
-                                textNode.setRangeHyperlink(inlineIndex, inlineIndex + inlinePart.text.length, {
-                                    type: "URL",
-                                    value: inlinePart.link
-                                });
-                                textNode.setRangeFills(inlineIndex, inlineIndex + inlinePart.text.length, [{
-                                    type: "SOLID",
-                                    color: {r: 0, g: 0, b: 1}
-                                }]);
-                            }
-
-                            inlineIndex += inlinePart.text.length;
                         }
                     }
-                    currentIndex += part.content.length + 1; // +1 for newline
+                    // Add newline part if this isn't the last part
+                    if (formattedParts.indexOf(part) < formattedParts.length - 1) {
+                        processedParts.push({
+                            text: '\n',
+                            fontSize: part.fontSize,
+                            isBold: part.isBold,
+                            isMedium: false,
+                            link: null
+                        });
+                    }
+                }
+
+                // Set the actual text (without markdown syntax)
+                textNode.characters = processedParts.map(part => part.text).join('');
+
+                // Apply formatting
+                let currentIndex = 0;
+                for (const part of processedParts) {
+                    if (part.text.length === 0) continue;
+
+                    // Set font size
+                    textNode.setRangeFontSize(currentIndex, currentIndex + part.text.length, part.fontSize);
+
+                    // Set font style
+                    let fontStyle = "Regular";
+                    if (part.isBold) {
+                        fontStyle = "Bold";
+                    } else if (part.isMedium) {
+                        fontStyle = "Semi Bold";
+                    }
+
+                    textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
+                        family: FONT_FAMILY,
+                        style: fontStyle,
+                    });
+
+                    // Apply hyperlinks
+                    if (part.link) {
+                        textNode.setRangeHyperlink(currentIndex, currentIndex + part.text.length, {
+                            type: "URL",
+                            value: part.link
+                        });
+                        textNode.setRangeFills(currentIndex, currentIndex + part.text.length, [{
+                            type: "SOLID",
+                            color: {r: 0, g: 0, b: 1}
+                        }]);
+                    }
+
+                    currentIndex += part.text.length;
                 }
 
                 figma.closePlugin();
