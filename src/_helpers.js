@@ -8,7 +8,7 @@ function parseBold(text) {
 }
 
 function parseMedium(text) {
-    const match = text.match(/^\*([^*].*?[^*])\*$/);
+    const match = text.match(/^\*([^*]+)\*$/);
     if (match) {
         return { text: match[1], bold: false, medium: true, link: null };
     }
@@ -28,8 +28,7 @@ export function parseFormattedText(text) {
     const parts = [];
     let currentIndex = 0;
 
-    // Wichtig: ** muss vor * kommen, damit Bold vor Medium gematched wird
-    const regex = /(\*\*.*?\*\*|\[.*?\]\(.*?\)|\*[^*].*?[^*]\*)/g;
+    const regex = /(\*\*[^*]+\*\*|\[.*?\]\(.*?\)|\*[^*]+\*)/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
@@ -79,15 +78,12 @@ export function parseFormattedText(text) {
 
     return parts;
 }
-
 // Export für Verwendung in anderen Modulen
-// export { parseFormattedText, parseBold, parseMedium, parseLink };
 
 // Beispiel-Usage:
-/*
-const text = "Das ist **fett**, das ist *medium* und das ist ein [Link](https://example.com).";
-const parts = parseFormattedText(text);
-console.log(parts);
+// const text = "Das ist **fett**, das ist *medium* und das ist ein [Link](https://example.com).";
+// const parts = parseFormattedText(text);
+// console.log(parts);
 // Output:
 // [
 //   { text: "Das ist ", bold: false, medium: false, link: null },
@@ -98,4 +94,3 @@ console.log(parts);
 //   { text: "Link", bold: false, medium: false, link: "https://example.com" },
 //   { text: ".", bold: false, medium: false, link: null }
 // ]
-*/

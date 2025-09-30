@@ -73,6 +73,8 @@ class ResumeBuilder {
                 fontStyle = "Semi Bold";
             }
 
+            await figma.loadFontAsync({ family: FONT_FAMILY, style: fontStyle });
+
             textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
                 family: FONT_FAMILY,
                 style: fontStyle,
@@ -99,7 +101,6 @@ class ResumeBuilder {
 
         return textNode;
     }
-
     async addTextElement(content, fontSize, isBold, marginTop = 0, marginBottom = 4) {
         this.yOffset += marginTop;
 
@@ -143,6 +144,7 @@ function parseMarkdownLine(line) {
     if (line.trim() === "") return {type: 'empty'};
 
     for (const [type, config] of Object.entries(MARKDOWN_ELEMENTS)) {
+        if (!config.regex) continue; // Skip elements without regex (like paragraph)
         const match = line.match(config.regex);
         if (match) {
             const content = type === 'list' ? config.prefix + match[1] : match[1];
@@ -205,8 +207,7 @@ figma.ui.onmessage = async (msg) => {
                 }
 
                 // Apply formatting to the text node
-                const fullText = formattedParts.map(part => part.content).join('\n');
-                textNode.characters = fullText;
+                textNode.characters = formattedParts.map(part => part.content).join('\n');
 
                 let currentIndex = 0;
                 for (const part of formattedParts) {
