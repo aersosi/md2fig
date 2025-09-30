@@ -143,6 +143,12 @@ class ResumeBuilder {
 function parseMarkdownLine(line) {
     if (line.trim() === "") return {type: 'empty'};
 
+    // Check for standalone links (entire line is a link)
+    const linkMatch = line.match(/^\[.*?\]\(.*?\)$/);
+    if (linkMatch) {
+        return {type: 'link', content: line};
+    }
+
     for (const [type, config] of Object.entries(MARKDOWN_ELEMENTS)) {
         if (!config.regex) continue; // Skip elements without regex (like paragraph)
         const match = line.match(config.regex);
@@ -305,6 +311,19 @@ figma.ui.onmessage = async (msg) => {
                     case 'list':
                         await processPendingParagraph();
                         listItems.push(parsed.content);
+                        break;
+
+                    case 'link':
+                        await processPendingParagraph();
+                        await processPendingList();
+                        const linkConfig = MARKDOWN_ELEMENTS.paragraph; // Use paragraph styling for links
+                        await builder.addTextElement(
+                            parsed.content,
+                            linkConfig.fontSize,
+                            linkConfig.isBold,
+                            linkConfig.marginTop,
+                            linkConfig.marginBottom
+                        );
                         break;
 
                     default: // headers
