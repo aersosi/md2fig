@@ -60,18 +60,32 @@ function processCSS(cssContent, basePath) {
 function buildHtml() {
     const htmlPath = path.resolve("src/ui.html");
     const cssPath = path.resolve("src/index.css");
+    const testMarkdownPath = path.resolve("src/test_plugin.md");
 
     let html = fs.readFileSync(htmlPath, "utf-8");
     const rawCSS = fs.readFileSync(cssPath, "utf-8");
     const processedCSS = processCSS(rawCSS, path.dirname(cssPath));
 
+    // Read test markdown content
+    let testMarkdown = '';
+    if (fs.existsSync(testMarkdownPath)) {
+        testMarkdown = fs.readFileSync(testMarkdownPath, "utf-8");
+    }
+
+    // Replace CSS link with inline styles
     html = html.replace(
         /<link rel=["']stylesheet["'] href=["']index\.css["']\s*\/?>/,
         `<style>\n${processedCSS}\n</style>`
     );
 
+    // Replace test markdown placeholder with actual content
+    html = html.replace(
+        /const testMarkdown = `[^`]*`;/,
+        `const testMarkdown = \`${testMarkdown.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`;`
+    );
+
     fs.writeFileSync(path.resolve("dist/ui.html"), html, "utf-8");
-    console.log("✅ Built ui.html with inline CSS");
+    console.log("✅ Built ui.html with inline CSS and test markdown");
 }
 
 const watchMode = process.argv.includes("--watch");

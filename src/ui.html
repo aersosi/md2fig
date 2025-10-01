@@ -50,9 +50,18 @@
     <div class="error-message py-base" id="error-message"></div>
 </div>
 
-<button class="btn font-base font-bold radius-base w-full py-sm" id="generate">Generate Output</button>
+<div class="flex gap-base">
+    <button class="btn font-base font-bold radius-base w-full py-sm" id="test">Test</button>
+    <button class="btn font-base font-bold radius-base w-full py-sm" id="generate">Generate Output</button>
+</div>
 
 <script>
+    const testMarkdown = ``;
+
+    document.getElementById('test').onclick = () => {
+        document.getElementById('markdown-input').value = testMarkdown;
+    };
+
     document.getElementById('generate').onclick = () => {
         const markdown = document.getElementById('markdown-input').value.trim();
         const dpi = parseInt(document.getElementById('dpi-select').value);
