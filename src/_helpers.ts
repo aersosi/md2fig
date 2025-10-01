@@ -1,6 +1,9 @@
 // Helper functions for parsing different formatting types
 import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
 import markdownit from 'markdown-it';
+import type Token from 'markdown-it/lib/token.mjs';
+
+import type { PageFormat, MarkdownBlock, InlinePart, PageDimensions } from "./types";
 
 // Initialize markdown-it parser
 const md = markdownit({
@@ -11,10 +14,10 @@ const md = markdownit({
 });
 
 // markdown-it based parsing functions
-export function parseMarkdownToBlocks(markdown) {
+export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
     const tokens = md.parse(markdown, {});
     console.log('🔍 Raw tokens from markdown-it:', JSON.stringify(tokens.map(t => ({ type: t.type, tag: t.tag, content: t.content })), null, 2));
-    const blocks = [];
+    const blocks: MarkdownBlock[] = [];
 
     for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
@@ -25,9 +28,10 @@ export function parseMarkdownToBlocks(markdown) {
                 const headingContent = tokens[i + 1]; // next token is inline content
                 blocks.push({
                     type: level,
-                    content: headingContent.content,
+                    content: headingContent.content || '',
                     config: MARKDOWN_ELEMENTS[level],
-                    inlineTokens: headingContent.children
+                    inlineTokens: headingContent.children || undefined,
+                    items: []
                 });
                 i += 2; // skip content + closing tag
                 break;
@@ -36,9 +40,10 @@ export function parseMarkdownToBlocks(markdown) {
                 const paraContent = tokens[i + 1];
                 blocks.push({
                     type: 'paragraph',
-                    content: paraContent.content,
+                    content: paraContent.content || '',
                     config: MARKDOWN_ELEMENTS.paragraph,
-                    inlineTokens: paraContent.children
+                    inlineTokens: paraContent.children || undefined,
+                    items: []
                 });
                 i += 2;
                 break;
@@ -58,7 +63,7 @@ export function parseMarkdownToBlocks(markdown) {
                                 const itemContent = tokens[j].type === 'inline' ? tokens[j] : tokens[j + 1];
                                 listItems.push({
                                     content: itemContent.content,
-                                    inlineTokens: itemContent.children
+                                    inlineTokens: itemContent.children || []
                                 });
                                 break;
                             }
@@ -69,6 +74,7 @@ export function parseMarkdownToBlocks(markdown) {
                 }
                 blocks.push({
                     type: 'list',
+                    content: '',
                     ordered: isOrdered,
                     items: listItems,
                     config: MARKDOWN_ELEMENTS.list
@@ -76,7 +82,7 @@ export function parseMarkdownToBlocks(markdown) {
                 break;
 
             case 'hr':
-                blocks.push({ type: 'empty' });
+                blocks.push({ type: 'empty', content: '', items: [] });
                 break;
         }
     }
@@ -84,14 +90,14 @@ export function parseMarkdownToBlocks(markdown) {
     return blocks;
 }
 
-export function parseInlineTokens(inlineTokens) {
+export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart[] {
     if (!inlineTokens || inlineTokens.length === 0) {
         return [{ text: '', bold: false, italic: false, link: null }];
     }
 
-    const parts = [];
+    const parts: InlinePart[] = [];
 
-    function walk(tokens, context) {
+    function walk(tokens: Token[], context?: { bold: boolean; italic: boolean; link: string | null }) {
         if (!context) {
             context = { bold: false, italic: false, link: null };
         }
@@ -164,14 +170,13 @@ export function parseInlineTokens(inlineTokens) {
     return parts.length > 0 ? parts : [{ text: '', bold: false, italic: false, link: null }];
 }
 
-const MM_TO_INCH = 1 / 25.4;
-
-export function toInches(value, unit) {
+export function toInches(value: number, unit: 'mm' | 'inch'): number {
+    const MM_TO_INCH = 1 / 25.4;
     return unit === 'mm' ? value * MM_TO_INCH : value;
 }
 
 // Function to calculate dimensions based on DPI, page format, and padding
-export function getPageDimensions(dpi = 96, pageFormat = 'letter', padding = 5) {
+export function getPageDimensions(dpi: number = 96, pageFormat: PageFormat = 'letter', padding: number = 5): PageDimensions {
     const format = PAGE_FORMATS[pageFormat] || PAGE_FORMATS.letter;
 
     const widthIn = toInches(format.width, format.unit);

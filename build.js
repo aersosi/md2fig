@@ -7,7 +7,7 @@ async function build(watch = false) {
     fs.mkdirSync("dist", { recursive: true });
 
     const ctx = await esbuild.context({
-        entryPoints: ["src/code.js"],
+        entryPoints: ["src/code.ts"],
         bundle: true,
         outfile: "dist/code.js",
         platform: "browser",
