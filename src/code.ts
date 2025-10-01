@@ -1,7 +1,10 @@
-import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./_constants.js";
+import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS, COLOR_HEX } from "./_constants.js";
 import { getPageDimensions, parseMarkdownToBlocks, parseInlineTokens } from "./_helpers.js";
 import type { PageDimensions, PluginMessage, PageFormat } from "./types";
 import type Token from 'markdown-it/lib/token.mjs';
+
+// Alias for more concise code
+const rgb = figma.util.rgb;
 
 // Helper function to check if URL is absolute
 function isAbsoluteUrl(url: string): boolean {
@@ -58,7 +61,7 @@ class ResumeBuilder {
         page.resize(this.dimensions.PAGE_WIDTH, this.dimensions.PAGE_HEIGHT);
         page.x = this.xPosition;
         page.y = 0;
-        page.fills = [{type: "SOLID", color: {r: 1, g: 1, b: 1}}];
+        page.fills = [{type: "SOLID", color: rgb(COLOR_HEX.PAGE_BACKGROUND)}];
         page.name = `Resume Page ${this.pageNumber}`;
         return page;
     }
@@ -82,9 +85,10 @@ class ResumeBuilder {
         textNode.y = this.yOffset;
         textNode.textAutoResize = "WIDTH_AND_HEIGHT";
 
-        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null, strikethrough: false, underline: false }];
+        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false }];
         let currentIndex = 0;
-        let linkParts = []; // Store link information for later processing
+        let linkParts = [];
+        let highlightParts = [];
 
         // First pass: insert text and apply basic formatting
         for (const part of parts) {
@@ -119,6 +123,14 @@ class ResumeBuilder {
                 textNode.setRangeTextDecoration(currentIndex, currentIndex + part.text.length, "UNDERLINE");
             }
 
+            // Store highlight info for later processing
+            if (part.highlight) {
+                highlightParts.push({
+                    startIndex: currentIndex,
+                    endIndex: currentIndex + part.text.length
+                });
+            }
+
             // Store link info for later processing
             if (part.link) {
                 linkParts.push({
@@ -132,7 +144,15 @@ class ResumeBuilder {
             currentIndex += part.text.length;
         }
 
-        // Second pass: apply hyperlinks after all text is inserted
+        // Second pass: apply highlights
+        for (const highlightPart of highlightParts) {
+            textNode.setRangeFills(highlightPart.startIndex, highlightPart.endIndex, [{
+                type: "SOLID",
+                color: rgb(COLOR_HEX.HIGHLIGHT)
+            }]);
+        }
+
+        // Third pass: apply hyperlinks after all text is inserted
         for (const linkPart of linkParts) {
             if (isAbsoluteUrl(linkPart.url)) {
                 textNode.setRangeHyperlink(linkPart.startIndex, linkPart.endIndex, {
@@ -141,7 +161,7 @@ class ResumeBuilder {
                 });
                 textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
                     type: "SOLID",
-                    color: {r: 0, g: 0, b: 1}
+                    color: rgb(COLOR_HEX.LINK)
                 }]);
             }
         }
@@ -186,6 +206,7 @@ class ResumeBuilder {
 
         let currentIndex = 0;
         let linkParts = [];
+        let highlightParts = [];
 
         // Process each list item
         for (let i = 0; i < items.length; i++) {
@@ -233,6 +254,13 @@ class ResumeBuilder {
                     textNode.setRangeTextDecoration(currentIndex, currentIndex + part.text.length, "UNDERLINE");
                 }
 
+                if (part.highlight) {
+                    highlightParts.push({
+                        startIndex: currentIndex,
+                        endIndex: currentIndex + part.text.length
+                    });
+                }
+
                 if (part.link) {
                     linkParts.push({
                         startIndex: currentIndex,
@@ -251,6 +279,14 @@ class ResumeBuilder {
             }
         }
 
+        // Apply highlights
+        for (const highlightPart of highlightParts) {
+            textNode.setRangeFills(highlightPart.startIndex, highlightPart.endIndex, [{
+                type: "SOLID",
+                color: rgb(COLOR_HEX.HIGHLIGHT)
+            }]);
+        }
+
         // Apply hyperlinks
         for (const linkPart of linkParts) {
             if (isAbsoluteUrl(linkPart.url)) {
@@ -260,7 +296,7 @@ class ResumeBuilder {
                 });
                 textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
                     type: "SOLID",
-                    color: {r: 0, g: 0, b: 1}
+                    color: rgb(COLOR_HEX.LINK)
                 }]);
             }
         }
@@ -369,7 +405,8 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                     isItalic: isItalic,
                     link: null,
                     strikethrough: false,
-                    underline: false
+                    underline: false,
+                    highlight: false
                 });
 
                 // Add inline parts
@@ -382,10 +419,11 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                         isItalic: isItalic || inlinePart.italic,
                         link: inlinePart.link,
                         strikethrough: inlinePart.strikethrough,
-                        underline: inlinePart.underline
+                        underline: inlinePart.underline,
+                        highlight: inlinePart.highlight
                     });
                 }
-                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false});
+                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false});
             }
         } else if (block.type !== 'empty') {
             const inlineParts = parseInlineTokens(block.inlineTokens);
@@ -398,19 +436,20 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                     isItalic: isItalic || inlinePart.italic,
                     link: inlinePart.link,
                     strikethrough: inlinePart.strikethrough,
-                    underline: inlinePart.underline
+                    underline: inlinePart.underline,
+                    highlight: inlinePart.highlight
                 });
             }
-            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false});
+            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false});
         } else {
             // Empty line - add extra newline to preserve spacing
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false});
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false});
         }
 
         // Add extra newline between blocks (to preserve paragraph spacing)
         const nextBlock = blocks[blockIndex + 1];
         if (nextBlock && block.type !== 'empty' && nextBlock.type !== 'empty') {
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false});
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false});
         }
     }
 
@@ -446,9 +485,14 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
             textNode.setRangeTextDecoration(currentIndex, rangeEnd, "UNDERLINE");
         }
 
+        // Apply highlight color
+        if (part.highlight) {
+            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(COLOR_HEX.HIGHLIGHT)}]);
+        }
+
         if (part.link && isAbsoluteUrl(part.link)) {
             textNode.setRangeHyperlink(currentIndex, rangeEnd, {type: "URL", value: part.link});
-            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: {r: 0, g: 0, b: 1}}]);
+            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(COLOR_HEX.LINK)}]);
         }
 
         currentIndex = rangeEnd;

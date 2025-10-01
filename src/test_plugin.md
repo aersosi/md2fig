@@ -1,7 +1,3 @@
-Here’s the full English translation of your Markdown syntax test file:
-
----
-
 # Markdown Syntax Test File
 
 This file systematically demonstrates all common Markdown syntax elements by category.

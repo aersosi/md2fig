@@ -8,3 +8,5 @@ declare const console: {
     warn(...args: any[]): void;
     error(...args: any[]): void;
 };
+
+declare module 'markdown-it-mark';

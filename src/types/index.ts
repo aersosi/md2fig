@@ -28,6 +28,7 @@ export interface InlinePart {
     link: string | null;
     strikethrough: boolean;
     underline: boolean;
+    highlight: boolean;
 }
 
 export interface PageDimensions {

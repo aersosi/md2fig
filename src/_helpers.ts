@@ -1,6 +1,7 @@
 // Helper functions for parsing different formatting types
 import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
 import markdownit from 'markdown-it';
+import markdownItMark from 'markdown-it-mark';
 import type Token from 'markdown-it/lib/token.mjs';
 
 import type { PageFormat, MarkdownBlock, InlinePart, PageDimensions } from "./types";
@@ -11,7 +12,9 @@ const md = markdownit({
     linkify: true,      // Auto-convert URLs to links
     breaks: false,      // Don't convert \n to <br>
     typographer: false  // No typographic replacements
-}).enable('strikethrough');
+})
+.enable('strikethrough')
+.use(markdownItMark);
 
 // markdown-it based parsing functions
 export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
@@ -106,14 +109,14 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 
 export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart[] {
     if (!inlineTokens || inlineTokens.length === 0) {
-        return [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false }];
+        return [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false }];
     }
 
     const parts: InlinePart[] = [];
 
-    function walk(tokens: Token[], context?: { bold: boolean; italic: boolean; link: string | null; strikethrough: boolean; underline: boolean }) {
+    function walk(tokens: Token[], context?: { bold: boolean; italic: boolean; link: string | null; strikethrough: boolean; underline: boolean; highlight: boolean }) {
         if (!context) {
-            context = { bold: false, italic: false, link: null, strikethrough: false, underline: false };
+            context = { bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false };
         }
 
         for (let i = 0; i < tokens.length; i++) {
@@ -126,7 +129,8 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     italic: context.italic,
                     link: context.link,
                     strikethrough: context.strikethrough,
-                    underline: context.underline
+                    underline: context.underline,
+                    highlight: context.highlight
                 });
             } else if (token.type === 'strong_open') {
                 // Find matching close and walk children
@@ -144,7 +148,8 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     italic: context.italic,
                     link: context.link,
                     strikethrough: context.strikethrough,
-                    underline: context.underline
+                    underline: context.underline,
+                    highlight: context.highlight
                 };
                 walk(children, newContext);
                 i = j - 1; // Skip to closing tag
@@ -164,7 +169,8 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     italic: true,
                     link: context.link,
                     strikethrough: context.strikethrough,
-                    underline: context.underline
+                    underline: context.underline,
+                    highlight: context.highlight
                 };
                 walk(children, newContext);
                 i = j - 1;
@@ -184,7 +190,8 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     italic: context.italic,
                     link: context.link,
                     strikethrough: true,
-                    underline: context.underline
+                    underline: context.underline,
+                    highlight: context.highlight
                 };
                 walk(children, newContext);
                 i = j - 1;
@@ -205,7 +212,29 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     italic: context.italic,
                     link: href,
                     strikethrough: context.strikethrough,
-                    underline: true
+                    underline: true,
+                    highlight: context.highlight
+                };
+                walk(children, newContext);
+                i = j - 1;
+            } else if (token.type === 'mark_open') {
+                // Highlight support (==text==)
+                let depth = 1;
+                let j = i + 1;
+                const children = [];
+                while (j < tokens.length && depth > 0) {
+                    if (tokens[j].type === 'mark_open') depth++;
+                    else if (tokens[j].type === 'mark_close') depth--;
+                    if (depth > 0) children.push(tokens[j]);
+                    j++;
+                }
+                const newContext = {
+                    bold: context.bold,
+                    italic: context.italic,
+                    link: context.link,
+                    strikethrough: context.strikethrough,
+                    underline: context.underline,
+                    highlight: true
                 };
                 walk(children, newContext);
                 i = j - 1;
@@ -229,7 +258,8 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                         italic: context.italic,
                         link: context.link,
                         strikethrough: context.strikethrough,
-                        underline: true
+                        underline: true,
+                        highlight: context.highlight
                     };
                     walk(children, newContext);
                     i = j; // Skip to closing tag
@@ -241,14 +271,15 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     italic: context.italic,
                     link: context.link,
                     strikethrough: context.strikethrough,
-                    underline: context.underline
+                    underline: context.underline,
+                    highlight: context.highlight
                 });
             }
         }
     }
 
     walk(inlineTokens);
-    return parts.length > 0 ? parts : [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false }];
+    return parts.length > 0 ? parts : [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false }];
 }
 
 export function toInches(value: number, unit: 'mm' | 'inch'): number {

@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "chokidar": "^4.0.3",
-    "markdown-it": "^14.1.0"
+    "markdown-it": "^14.1.0",
+    "markdown-it-mark": "^4.0.0"
   }
 }
