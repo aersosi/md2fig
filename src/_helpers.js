@@ -1,76 +1,163 @@
 // Helper functions for parsing different formatting types
 import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
+import markdownit from 'markdown-it';
 
-export function paseLine(line) {
-    if (line.trim() === "") return {type: 'empty'};
+// Initialize markdown-it parser
+const md = markdownit({
+    html: false,        // No HTML allowed (security)
+    linkify: true,      // Auto-convert URLs to links
+    breaks: false,      // Don't convert \n to <br>
+    typographer: false  // No typographic replacements
+});
 
-    // Check for standalone links (entire line is a link)
-    const linkMatch = line.match(/^\[.*?\]\(.*?\)$/);
-    if (linkMatch) {
-        return {type: 'link', content: line};
-    }
+// markdown-it based parsing functions
+export function parseMarkdownToBlocks(markdown) {
+    const tokens = md.parse(markdown, {});
+    const blocks = [];
 
-    for (const [type, config] of Object.entries(MARKDOWN_ELEMENTS)) {
-        if (!config.regex) continue; // Skip elements without regex (like paragraph)
-        const match = line.match(config.regex);
-        if (match) {
-            const content = type === 'list' ? config.prefix + match[1] : match[1];
-            return {type, content, config};
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+
+        switch(token.type) {
+            case 'heading_open':
+                const level = token.tag; // 'h1', 'h2', etc.
+                const headingContent = tokens[i + 1]; // next token is inline content
+                blocks.push({
+                    type: level,
+                    content: headingContent.content,
+                    config: MARKDOWN_ELEMENTS[level],
+                    inlineTokens: headingContent.children
+                });
+                i += 2; // skip content + closing tag
+                break;
+
+            case 'paragraph_open':
+                const paraContent = tokens[i + 1];
+                blocks.push({
+                    type: 'paragraph',
+                    content: paraContent.content,
+                    config: MARKDOWN_ELEMENTS.paragraph,
+                    inlineTokens: paraContent.children
+                });
+                i += 2;
+                break;
+
+            case 'bullet_list_open':
+                const listItems = [];
+                i++; // move to first list_item
+                while (tokens[i] && tokens[i].type !== 'bullet_list_close') {
+                    if (tokens[i].type === 'list_item_open') {
+                        // Find the paragraph content inside list item
+                        let j = i + 1;
+                        while (j < tokens.length && tokens[j].type !== 'list_item_close') {
+                            if (tokens[j].type === 'paragraph_open' || tokens[j].type === 'inline') {
+                                const itemContent = tokens[j].type === 'inline' ? tokens[j] : tokens[j + 1];
+                                listItems.push({
+                                    content: itemContent.content,
+                                    inlineTokens: itemContent.children
+                                });
+                                break;
+                            }
+                            j++;
+                        }
+                    }
+                    i++;
+                }
+                blocks.push({
+                    type: 'list',
+                    items: listItems,
+                    config: MARKDOWN_ELEMENTS.list
+                });
+                break;
+
+            case 'hr':
+                blocks.push({ type: 'empty' });
+                break;
         }
     }
 
-    return {type: 'paragraph', content: line};
+    return blocks;
 }
 
-export function paseSubstring(text) {
+export function parseInlineTokens(inlineTokens) {
+    if (!inlineTokens || inlineTokens.length === 0) {
+        return [{ text: '', bold: false, italic: false, link: null }];
+    }
+
     const parts = [];
-    let currentIndex = 0;
 
-    // Combined regex that matches all inline formatting
-    // Order matters: links first (most specific), then bold, then italic
-    const regex = /(\[.+?\]\(.+?\))|(\*\*[^*]+?\*\*)|(_[^_]+?_)/g;
-
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-        // Add text before the match
-        if (match.index > currentIndex) {
-            parts.push({ text: text.slice(currentIndex, match.index) });
+    function walk(tokens, context) {
+        if (!context) {
+            context = { bold: false, italic: false, link: null };
         }
 
-        const fullMatch = match[0];
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
 
-        // Check which pattern matched
-        if (match[1]) {
-            // Link: [text](url)
-            const linkMatch = fullMatch.match(/\[(.+?)\]\((.+?)\)/);
-            if (linkMatch) {
-                parts.push({ text: linkMatch[1], bold: false, italic: false, link: linkMatch[2] });
-            }
-        } else if (match[2]) {
-            // Bold: **text**
-            const boldMatch = fullMatch.match(/\*\*([^*]+?)\*\*/);
-            if (boldMatch) {
-                parts.push({ text: boldMatch[1], bold: true, italic: false, link: null });
-            }
-        } else if (match[3]) {
-            // Italic: _text_
-            const italicMatch = fullMatch.match(/_([^_]+?)_/);
-            if (italicMatch) {
-                parts.push({ text: italicMatch[1], bold: false, italic: true, link: null });
+            if (token.type === 'text') {
+                parts.push({
+                    text: token.content,
+                    bold: context.bold,
+                    italic: context.italic,
+                    link: context.link
+                });
+            } else if (token.type === 'strong_open') {
+                // Find matching close and walk children
+                let depth = 1;
+                let j = i + 1;
+                const children = [];
+                while (j < tokens.length && depth > 0) {
+                    if (tokens[j].type === 'strong_open') depth++;
+                    else if (tokens[j].type === 'strong_close') depth--;
+                    if (depth > 0) children.push(tokens[j]);
+                    j++;
+                }
+                const newContext = { bold: true, italic: context.italic, link: context.link };
+                walk(children, newContext);
+                i = j - 1; // Skip to closing tag
+            } else if (token.type === 'em_open') {
+                // Find matching close and walk children
+                let depth = 1;
+                let j = i + 1;
+                const children = [];
+                while (j < tokens.length && depth > 0) {
+                    if (tokens[j].type === 'em_open') depth++;
+                    else if (tokens[j].type === 'em_close') depth--;
+                    if (depth > 0) children.push(tokens[j]);
+                    j++;
+                }
+                const newContext = { bold: context.bold, italic: true, link: context.link };
+                walk(children, newContext);
+                i = j - 1;
+            } else if (token.type === 'link_open') {
+                // Find href and walk children
+                const href = token.attrGet('href');
+                let depth = 1;
+                let j = i + 1;
+                const children = [];
+                while (j < tokens.length && depth > 0) {
+                    if (tokens[j].type === 'link_open') depth++;
+                    else if (tokens[j].type === 'link_close') depth--;
+                    if (depth > 0) children.push(tokens[j]);
+                    j++;
+                }
+                const newContext = { bold: context.bold, italic: context.italic, link: href };
+                walk(children, newContext);
+                i = j - 1;
+            } else if (token.type === 'code_inline') {
+                parts.push({
+                    text: token.content,
+                    bold: context.bold,
+                    italic: context.italic,
+                    link: context.link
+                });
             }
         }
-
-        currentIndex = regex.lastIndex;
     }
 
-    // Add remaining text
-    if (currentIndex < text.length) {
-        parts.push({ text: text.slice(currentIndex), bold: false, italic: false, link: null });
-    }
-
-    return parts;
+    walk(inlineTokens);
+    return parts.length > 0 ? parts : [{ text: '', bold: false, italic: false, link: null }];
 }
-
 
 const MM_TO_INCH = 1 / 25.4;
 

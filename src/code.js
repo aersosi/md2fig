@@ -1,5 +1,5 @@
 import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./_constants.js";
-import { getPageDimensions, paseLine, paseSubstring } from "./_helpers.js"
+import { getPageDimensions, parseMarkdownToBlocks, parseInlineTokens } from "./_helpers.js"
 
 figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
@@ -181,7 +181,7 @@ figma.ui.onmessage = async (msg) => {
             await createResumeFrameFromMarkdown(dimensions, lines);
         }
 
-        figma.closePlugin();
+        // figma.closePlugin();
 
     } catch (error) {
         console.error("An error occurred:", error);
@@ -210,17 +210,32 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
     const defaultConfig = MARKDOWN_ELEMENTS.paragraph;
     let processedParts = [];
 
-    // 1. Markdown-Zeilen parsen und in formatierte Teile umwandeln
-    for (const line of lines) {
-        const parsed = paseLine(line);
-        const {fontSize, isBold, isItalic = false} = parsed.config || defaultConfig;
-        const content = parsed.type === 'empty' ? '' : (parsed.content || line);
+    // Parse with markdown-it
+    const markdown = lines.join('\n');
+    const blocks = parseMarkdownToBlocks(markdown);
 
-        // Inline-Formatierungen (fett, Links) weiterverarbeiten
-        if (content) {
-            const inlineParts = paseSubstring(content);
-            console.log('Content:', content);
-            console.log('Parsed parts:', JSON.stringify(inlineParts, null, 2));
+    for (const block of blocks) {
+        const {fontSize, isBold, isItalic = false} = block.config || defaultConfig;
+
+        if (block.type === 'list') {
+            // Handle list items
+            for (const item of block.items) {
+                const inlineParts = parseInlineTokens(item.inlineTokens);
+
+                for (const inlinePart of inlineParts) {
+                    processedParts.push({
+                        text: inlinePart.text,
+                        fontSize: fontSize,
+                        isBold: isBold || inlinePart.bold,
+                        isItalic: isItalic || inlinePart.italic,
+                        link: inlinePart.link
+                    });
+                }
+                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null});
+            }
+        } else if (block.type !== 'empty') {
+            const inlineParts = parseInlineTokens(block.inlineTokens);
+
             for (const inlinePart of inlineParts) {
                 processedParts.push({
                     text: inlinePart.text,
@@ -230,11 +245,13 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
                     link: inlinePart.link
                 });
             }
+            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null});
+        } else {
+            // Empty line
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null});
         }
-        // Zeilenumbruch hinzufügen
-        processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null});
     }
-    processedParts.pop(); // Letzten, überflüssigen Zeilenumbruch entfernen
+    processedParts.pop(); // Remove last newline
 
     // 2. Text im Knoten setzen und formatieren
     textNode.characters = processedParts.map(part => part.text).join('');
