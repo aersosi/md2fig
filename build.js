@@ -61,6 +61,7 @@ function buildHtml() {
     const htmlPath = path.resolve("src/ui.html");
     const cssPath = path.resolve("src/index.css");
     const testMarkdownPath = path.resolve("src/test_plugin.md");
+    const constantsPath = path.resolve("src/_constants.ts");
 
     let html = fs.readFileSync(htmlPath, "utf-8");
     const rawCSS = fs.readFileSync(cssPath, "utf-8");
@@ -70,6 +71,26 @@ function buildHtml() {
     let testMarkdown = '';
     if (fs.existsSync(testMarkdownPath)) {
         testMarkdown = fs.readFileSync(testMarkdownPath, "utf-8");
+    }
+
+    // Read highlight color from constants
+    let highlightColor = '#00d96c'; // fallback default
+    if (fs.existsSync(constantsPath)) {
+        const constantsContent = fs.readFileSync(constantsPath, "utf-8");
+        const highlightMatch = constantsContent.match(/HIGHLIGHT:\s*['"]([^'"]+)['"]/);
+        if (highlightMatch) {
+            highlightColor = highlightMatch[1];
+        }
+    }
+
+    // Read link color from constants
+    let linkColor = '#0000FF'; // fallback default
+    if (fs.existsSync(constantsPath)) {
+        const constantsContent = fs.readFileSync(constantsPath, "utf-8");
+        const linkMatch = constantsContent.match(/LINK:\s*['"]([^'"]+)['"]/);
+        if (linkMatch) {
+            linkColor = linkMatch[1];
+        }
     }
 
     // Replace CSS link with inline styles
@@ -82,6 +103,17 @@ function buildHtml() {
     html = html.replace(
         /const testMarkdown = `[^`]*`;/,
         `const testMarkdown = \`${testMarkdown.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`;`
+    );
+
+    // Replace highlight color value in the color picker
+    html = html.replace(
+        /(<input type="color"[^>]*id="highlight-color"[^>]*value=")#[0-9a-fA-F]{6}(")/,
+        `$1${highlightColor}$2`
+    );
+    // Replace highlight color value in the color picker
+    html = html.replace(
+        /(<input type="color"[^>]*id="link-color"[^>]*value=")#[0-9a-fA-F]{6}(")/,
+        `$1${linkColor}$2`
     );
 
     fs.writeFileSync(path.resolve("dist/ui.html"), html, "utf-8");

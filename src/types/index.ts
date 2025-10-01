@@ -48,4 +48,6 @@ export interface PluginMessage {
     pageFormat?: string;
     padding?: number;
     markdown?: string;
+    highlightColor?: string;
+    linkColor?: string;
 }

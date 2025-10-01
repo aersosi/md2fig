@@ -1,8 +1,9 @@
-# Markdown to Figma - Classic Resume Figma Plugin
+# Markdown to Figma
    
 ![Plugin Icon](assets/icon.png)
 
-A Figma plugin that transforms Markdown-formatted text into a professionally designed classic resume. Perfect for designers and professionals looking to create sleek resumes effortlessly.
+A Figma plugin that transforms Markdown-formatted text into a professionally designed classic resume. 
+Perfect for designers and professionals looking to create sleek resumes effortlessly.
 
 ## 🚀 Features
 

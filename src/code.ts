@@ -13,7 +13,7 @@ function isAbsoluteUrl(url: string): boolean {
 
 figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
-class ResumeBuilder {
+class PageBuilder {
     dimensions: PageDimensions;
     yOffset: number;
     pageNumber: number;
@@ -21,8 +21,10 @@ class ResumeBuilder {
     currentPage: FrameNode;
     allPages: FrameNode[];
     fontsLoaded: boolean;
+    highlightColor: string;
+    linkColor: string;
 
-    constructor(dimensions: PageDimensions) {
+    constructor(dimensions: PageDimensions, highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK) {
         this.dimensions = dimensions;
         this.yOffset = dimensions.PADDING;
         this.pageNumber = 1;
@@ -30,6 +32,8 @@ class ResumeBuilder {
         this.currentPage = this.createNewPage();
         this.allPages = [this.currentPage];
         this.fontsLoaded = false;
+        this.highlightColor = highlightColor;
+        this.linkColor = linkColor;
     }
 
 
@@ -62,7 +66,7 @@ class ResumeBuilder {
         page.x = this.xPosition;
         page.y = 0;
         page.fills = [{type: "SOLID", color: rgb(COLOR_HEX.PAGE_BACKGROUND)}];
-        page.name = `Resume Page ${this.pageNumber}`;
+        page.name = `Page ${this.pageNumber}`;
         return page;
     }
 
@@ -154,7 +158,7 @@ class ResumeBuilder {
         for (const highlightPart of highlightParts) {
             textNode.setRangeFills(highlightPart.startIndex, highlightPart.endIndex, [{
                 type: "SOLID",
-                color: rgb(COLOR_HEX.HIGHLIGHT)
+                color: rgb(this.highlightColor)
             }]);
         }
 
@@ -167,7 +171,7 @@ class ResumeBuilder {
                 });
                 textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
                     type: "SOLID",
-                    color: rgb(COLOR_HEX.LINK)
+                    color: rgb(this.linkColor)
                 }]);
             }
         }
@@ -313,7 +317,7 @@ class ResumeBuilder {
         for (const highlightPart of highlightParts) {
             textNode.setRangeFills(highlightPart.startIndex, highlightPart.endIndex, [{
                 type: "SOLID",
-                color: rgb(COLOR_HEX.HIGHLIGHT)
+                color: rgb(this.highlightColor)
             }]);
         }
 
@@ -326,7 +330,7 @@ class ResumeBuilder {
                 });
                 textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
                     type: "SOLID",
-                    color: rgb(COLOR_HEX.LINK)
+                    color: rgb(this.linkColor)
                 }]);
             }
         }
@@ -355,13 +359,13 @@ class ResumeBuilder {
 
 // Haupt-Handler, der die Nachricht empfängt und die Logik delegiert
 figma.ui.onmessage = async (msg: PluginMessage) => {
-    if (msg.type !== "create-resume") {
+    if (msg.type !== "create-page") {
         return;
     }
 
     try {
         // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
-        const {dpi = 96, pageFormat = 'letter', padding = 5, markdown = ''} = msg;
+        const {dpi = 96, pageFormat = 'letter', padding = 5, markdown = '', highlightColor = COLOR_HEX.HIGHLIGHT, linkColor = COLOR_HEX.LINK} = msg;
         const dimensions = getPageDimensions(dpi, pageFormat as PageFormat, padding);
         const lines = markdown.split("\n");
 
@@ -370,9 +374,9 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
 
         // 2. Logik basierend auf der Auswahl delegieren
         if (selectedTextNode) {
-            await updateTextNodeWithMarkdown(selectedTextNode, lines);
+            await updateTextNodeWithMarkdown(selectedTextNode, lines, highlightColor, linkColor);
         } else {
-            await createResumeFrameFromMarkdown(dimensions, lines);
+            await createPageFrameFromMarkdown(dimensions, lines, highlightColor, linkColor);
         }
 
         // figma.closePlugin();
@@ -383,7 +387,7 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
     }
 };
 
-async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): Promise<void> {
+async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
     // Fonts laden
     const fontPromises: Promise<void>[] = [];
     for (const font of FONT_FAMILIES) {
@@ -526,20 +530,20 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
 
         // Apply highlight color
         if (part.highlight) {
-            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(COLOR_HEX.HIGHLIGHT)}]);
+            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(highlightColor)}]);
         }
 
         if (part.link && isAbsoluteUrl(part.link)) {
             textNode.setRangeHyperlink(currentIndex, rangeEnd, {type: "URL", value: part.link});
-            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(COLOR_HEX.LINK)}]);
+            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(linkColor)}]);
         }
 
         currentIndex = rangeEnd;
     }
 }
 
-async function createResumeFrameFromMarkdown(dimensions: PageDimensions, lines: string[]): Promise<void> {
-    const builder = new ResumeBuilder(dimensions);
+async function createPageFrameFromMarkdown(dimensions: PageDimensions, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
+    const builder = new PageBuilder(dimensions, highlightColor, linkColor);
     await builder.loadFonts();
 
     // Parse with markdown-it

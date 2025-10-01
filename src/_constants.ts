@@ -31,5 +31,5 @@ export const MARKDOWN_ELEMENTS: Record<string, MarkdownElementConfig> = {
 export const COLOR_HEX = {
     PAGE_BACKGROUND: '#FFFFFF',
     LINK: '#0000FF',
-    HIGHLIGHT: '#00ff80'
+    HIGHLIGHT: '#00d96c'
 };
