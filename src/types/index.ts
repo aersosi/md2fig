@@ -2,11 +2,11 @@ import type Token from 'markdown-it/lib/token.mjs';
 
 export type PageFormat = 'a4' | 'a3' | 'letter' | 'legal' | 'tabloid';
 
+export type FontStyle = 'regular' | 'bold' | 'italic' | 'bold-italic';
+
 export interface MarkdownElementConfig {
-    regex?: RegExp;
     fontSize: number;
-    isBold: boolean;
-    isItalic: boolean;
+    style: FontStyle;
     marginTop: number;
     marginBottom: number;
     prefix?: string;
@@ -14,10 +14,10 @@ export interface MarkdownElementConfig {
 
 export interface MarkdownBlock {
     type: string;
-    content?: string;
+    content: string;
     config?: MarkdownElementConfig;
     inlineTokens?: Token[];
-    items?: Array<{ content: string; inlineTokens: Token[] }>;
+    items: Array<{ content: string; inlineTokens: Token[] }>;
     ordered?: boolean;
 }
 

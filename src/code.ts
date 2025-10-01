@@ -1,6 +1,6 @@
 import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./_constants.js";
 import { getPageDimensions, parseMarkdownToBlocks, parseInlineTokens } from "./_helpers.js";
-import type { PageDimensions, MarkdownBlock, InlinePart, PluginMessage } from "./types/index.js";
+import type { PageDimensions, PluginMessage, PageFormat } from "./types";
 import type Token from 'markdown-it/lib/token.mjs';
 
 // Helper function to check if URL is absolute
@@ -29,18 +29,24 @@ class ResumeBuilder {
         this.fontsLoaded = false;
     }
 
+
     async loadFonts(): Promise<void> {
         if (this.fontsLoaded) return;
 
-        const fontPromises = FONT_FAMILIES.flatMap(font =>
-            font.weights.map(async weight => {
-                try {
-                    await figma.loadFontAsync({family: font.name, style: weight});
-                } catch (error) {
-                    console.warn(error);
-                }
-            })
-        );
+        const fontPromises: Promise<void>[] = [];
+        for (const font of FONT_FAMILIES) {
+            for (const weight of font.weights) {
+                fontPromises.push(
+                    (async () => {
+                        try {
+                            await figma.loadFontAsync({family: font.name, style: weight});
+                        } catch (error) {
+                            console.warn(error);
+                        }
+                    })()
+                );
+            }
+        }
 
         await Promise.all(fontPromises);
 
@@ -138,10 +144,12 @@ class ResumeBuilder {
         return textNode;
     }
 
-    async addTextElement(content: string, fontSize: number, isBold: boolean, isItalic: boolean, marginTop: number = 0, marginBottom: number = 4, inlineTokens?: Token[]): Promise<void> {
-        this.yOffset += marginTop;
+    async addTextElement(content: string, config: any, inlineTokens?: Token[]): Promise<void> {
+        this.yOffset += config.marginTop;
 
-        const textNode = await this.createFormattedTextNode(content, fontSize, isBold, isItalic, inlineTokens);
+        const isBold = config.style === 'bold' || config.style === 'bold-italic';
+        const isItalic = config.style === 'italic' || config.style === 'bold-italic';
+        const textNode = await this.createFormattedTextNode(content, config.fontSize, isBold, isItalic, inlineTokens);
 
         // Check if we need a new page and update position if so
         const newPage = this.checkAndCreateNewPage(textNode.height);
@@ -151,7 +159,7 @@ class ResumeBuilder {
         }
 
         this.currentPage.appendChild(textNode);
-        this.yOffset += textNode.height + marginBottom;
+        this.yOffset += textNode.height + config.marginBottom;
     }
 
     async addListElement(items: Array<{ content: string; inlineTokens: Token[] }>, config: any): Promise<void> {
@@ -163,19 +171,22 @@ class ResumeBuilder {
         textNode.y = this.yOffset;
         textNode.textAutoResize = "WIDTH_AND_HEIGHT";
 
+        const isBold = config.style === 'bold' || config.style === 'bold-italic';
+        const isItalic = config.style === 'italic' || config.style === 'bold-italic';
+
         let currentIndex = 0;
         let linkParts = [];
 
         // Process each list item
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
-            const prefix = MARKDOWN_ELEMENTS.list.prefix;
+            const prefix = MARKDOWN_ELEMENTS.list.prefix || '• ';
 
             // Insert prefix
             textNode.insertCharacters(currentIndex, prefix);
             textNode.setRangeFontName(currentIndex, currentIndex + prefix.length, {
                 family: FONT_FAMILIES[0].name,
-                style: config.isBold ? "Bold" : "Regular",
+                style: isBold ? "Bold" : "Regular",
             });
             currentIndex += prefix.length;
 
@@ -187,8 +198,8 @@ class ResumeBuilder {
                 textNode.insertCharacters(currentIndex, part.text);
 
                 let fontStyle = "Regular";
-                const effectiveBold = part.bold || config.isBold;
-                const effectiveItalic = part.italic || config.isItalic;
+                const effectiveBold = part.bold || isBold;
+                const effectiveItalic = part.italic || isItalic;
 
                 if (effectiveBold && effectiveItalic) {
                     fontStyle = "Bold Italic";
@@ -266,7 +277,7 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
     try {
         // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
         const {dpi = 96, pageFormat = 'letter', padding = 5, markdown = ''} = msg;
-        const dimensions = getPageDimensions(dpi, pageFormat, padding);
+        const dimensions = getPageDimensions(dpi, pageFormat as PageFormat, padding);
         const lines = markdown.split("\n");
 
         const selection = figma.currentPage.selection;
@@ -289,15 +300,20 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
 
 async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): Promise<void> {
     // Fonts laden
-    const fontPromises = FONT_FAMILIES.flatMap(font =>
-        font.weights.map(async weight => {
-            try {
-                await figma.loadFontAsync({family: font.name, style: weight});
-            } catch (error) {
-                console.warn(error);
-            }
-        })
-    );
+    const fontPromises: Promise<void>[] = [];
+    for (const font of FONT_FAMILIES) {
+        for (const weight of font.weights) {
+            fontPromises.push(
+                (async () => {
+                    try {
+                        await figma.loadFontAsync({family: font.name, style: weight});
+                    } catch (error) {
+                        console.warn(error);
+                    }
+                })()
+            );
+        }
+    }
     await Promise.all(fontPromises);
 
     const defaultConfig = MARKDOWN_ELEMENTS.paragraph;
@@ -309,7 +325,10 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
 
     for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
         const block = blocks[blockIndex];
-        const {fontSize, isBold, isItalic = false} = block.config || defaultConfig;
+        const config = block.config || defaultConfig;
+        const {fontSize, style} = config;
+        const isBold = style === 'bold' || style === 'bold-italic';
+        const isItalic = style === 'italic' || style === 'bold-italic';
 
         if (block.type === 'list') {
             // Handle list items
@@ -377,7 +396,7 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
 
     let currentIndex = 0;
     for (const part of processedParts) {
-        if (part.text.length === 0) continue;
+        if (!part.text || part.text.length === 0) continue;
 
         const rangeEnd = currentIndex + part.text.length;
         let fontStyle = "Regular";
@@ -420,15 +439,7 @@ async function createResumeFrameFromMarkdown(dimensions: PageDimensions, lines: 
 
             case 'paragraph':
                 // Create text node for paragraph
-                await builder.addTextElement(
-                    block.content,
-                    config.fontSize,
-                    config.isBold,
-                    config.isItalic,
-                    config.marginTop,
-                    config.marginBottom,
-                    block.inlineTokens
-                );
+                await builder.addTextElement(block.content, config, block.inlineTokens);
                 break;
 
             case 'list':
@@ -443,15 +454,7 @@ async function createResumeFrameFromMarkdown(dimensions: PageDimensions, lines: 
             case 'h5':
             case 'h6':
                 // Create text node for heading
-                await builder.addTextElement(
-                    block.content,
-                    config.fontSize,
-                    config.isBold,
-                    config.isItalic,
-                    config.marginTop,
-                    config.marginBottom,
-                    block.inlineTokens
-                );
+                await builder.addTextElement(block.content, config, block.inlineTokens);
                 break;
         }
     }

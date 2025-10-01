@@ -28,9 +28,10 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                 const headingContent = tokens[i + 1]; // next token is inline content
                 blocks.push({
                     type: level,
-                    content: headingContent.content,
+                    content: headingContent.content || '',
                     config: MARKDOWN_ELEMENTS[level],
-                    inlineTokens: headingContent.children || undefined
+                    inlineTokens: headingContent.children || undefined,
+                    items: []
                 });
                 i += 2; // skip content + closing tag
                 break;
@@ -39,9 +40,10 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                 const paraContent = tokens[i + 1];
                 blocks.push({
                     type: 'paragraph',
-                    content: paraContent.content,
+                    content: paraContent.content || '',
                     config: MARKDOWN_ELEMENTS.paragraph,
-                    inlineTokens: paraContent.children || undefined
+                    inlineTokens: paraContent.children || undefined,
+                    items: []
                 });
                 i += 2;
                 break;
@@ -72,6 +74,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                 }
                 blocks.push({
                     type: 'list',
+                    content: '',
                     ordered: isOrdered,
                     items: listItems,
                     config: MARKDOWN_ELEMENTS.list
@@ -79,7 +82,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                 break;
 
             case 'hr':
-                blocks.push({ type: 'empty' });
+                blocks.push({ type: 'empty', content: '', items: [] });
                 break;
         }
     }

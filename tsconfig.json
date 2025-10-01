@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "lib": ["ES2018", "ES2015", "DOM"],
+    "target": "es6",
+    "lib": ["es6"],
     "module": "ESNext",
     "moduleResolution": "node",
     "strict": true,
@@ -10,9 +10,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["@figma/plugin-typings"],
-    "typeRoots": ["./node_modules/@types", "./node_modules/@figma"]
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/@figma"
+    ]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "node_modules/@figma/plugin-typings/index.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
