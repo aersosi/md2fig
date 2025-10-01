@@ -53,9 +53,22 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                 const listItems = [];
                 const isOrdered = token.type === 'ordered_list_open';
                 const closeType = isOrdered ? 'ordered_list_close' : 'bullet_list_close';
+                let minLevel = Infinity;
+
+                // First pass: find minimum level
+                let tempI = i + 1;
+                while (tokens[tempI] && tokens[tempI].type !== closeType) {
+                    if (tokens[tempI].type === 'list_item_open') {
+                        minLevel = Math.min(minLevel, tokens[tempI].level || 0);
+                    }
+                    tempI++;
+                }
+
+                // Second pass: collect items with normalized levels
                 i++; // move to first list_item
                 while (tokens[i] && tokens[i].type !== closeType) {
                     if (tokens[i].type === 'list_item_open') {
+                        const itemLevel = (tokens[i].level || 0) - minLevel;
                         // Find the paragraph content inside list item
                         let j = i + 1;
                         while (j < tokens.length && tokens[j].type !== 'list_item_close') {
@@ -63,7 +76,8 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                                 const itemContent = tokens[j].type === 'inline' ? tokens[j] : tokens[j + 1];
                                 listItems.push({
                                     content: itemContent.content,
-                                    inlineTokens: itemContent.children || []
+                                    inlineTokens: itemContent.children || [],
+                                    level: itemLevel
                                 });
                                 break;
                             }

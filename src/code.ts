@@ -162,7 +162,7 @@ class ResumeBuilder {
         this.yOffset += textNode.height + config.marginBottom;
     }
 
-    async addListElement(items: Array<{ content: string; inlineTokens: Token[] }>, config: any): Promise<void> {
+    async addListElement(items: Array<{ content: string; inlineTokens: Token[], level: number }>, config: any): Promise<void> {
         this.yOffset += config.marginTop;
 
         const textNode = figma.createText();
@@ -180,15 +180,17 @@ class ResumeBuilder {
         // Process each list item
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
+            const indent = '    '.repeat(item.level);
             const prefix = MARKDOWN_ELEMENTS.list.prefix || '• ';
 
-            // Insert prefix
-            textNode.insertCharacters(currentIndex, prefix);
-            textNode.setRangeFontName(currentIndex, currentIndex + prefix.length, {
+            // Insert indent + prefix
+            textNode.insertCharacters(currentIndex, indent + prefix);
+            const prefixLength = indent.length + prefix.length;
+            textNode.setRangeFontName(currentIndex, currentIndex + prefixLength, {
                 family: FONT_FAMILIES[0].name,
                 style: isBold ? "Bold" : "Regular",
             });
-            currentIndex += prefix.length;
+            currentIndex += prefixLength;
 
             // Process inline tokens for this item
             const parts = parseInlineTokens(item.inlineTokens);
@@ -335,13 +337,16 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
             for (let itemIndex = 0; itemIndex < block.items.length; itemIndex++) {
                 const item = block.items[itemIndex];
 
+                // Add indent based on level
+                const indent = '    '.repeat(item.level);
+
                 // Add list prefix (bullet or number)
                 const prefix = block.ordered
                     ? (itemIndex + 1) + '. '
                     : MARKDOWN_ELEMENTS.list.prefix;
 
                 processedParts.push({
-                    text: prefix,
+                    text: indent + prefix,
                     fontSize: fontSize,
                     isBold: isBold,
                     isItalic: isItalic,

@@ -65,10 +65,8 @@ This is the next line (two spaces at the end of the previous line).
 
 * List item with asterisk
 * Second item
-
     * Nested item
     * Another nested item
-
         * Double nested
 * Back to first level
 
@@ -83,7 +81,6 @@ This is the next line (two spaces at the end of the previous line).
 1. First item
 2. Second item
 3. Third item
-
     1. Nested item
     2. Another one
 4. Fourth item
@@ -93,14 +90,12 @@ This is the next line (two spaces at the end of the previous line).
 * [x] Completed task
 * [ ] Open task
 * [ ] Another open task
-
     * [x] Nested completed task
     * [ ] Nested open task
 
 1. [x] Completed task
 2. [ ] Open task
 3. [ ] Another open task
-
     * [x] Nested completed task
     * [ ] Nested open task
 
@@ -126,14 +121,14 @@ This is the next line (two spaces at the end of the previous line).
 
 ## 6. Images
 
-![Alt text](https://via.placeholder.com/150 "Optional title")
+![Alt text](https://picsum.photos/id/237/200/300 "Optional title")
 
 ![Alt text for reference image][img1]
 
-[img1]: https://via.placeholder.com/200 "Reference image"
+[img1]: https://picsum.photos/id/237/200/300 "Reference image"
 
 Image with link:
-[![Alt text](https://via.placeholder.com/100)](https://www.example.com)
+[![Alt text](https://picsum.photos/id/237/200/300)](https://www.example.com)
 
 ---
 
@@ -233,22 +228,22 @@ Three or more underscores:
 ### Simple Table
 
 | Column 1 | Column 2 | Column 3 |
-| -------- | -------- | -------- |
+|----------|----------|----------|
 | Row 1    | Data     | More     |
 | Row 2    | Data     | More     |
 
 ### Table with Alignment
 
 | Left | Centered | Right |
-| :--- | :------: | ----: |
+|:-----|:--------:|------:|
 | Left |  Center  | Right |
 | Text |   Text   |  Text |
-| 1    |     2    |     3 |
+| 1    |    2     |     3 |
 
 ### Table with Formatting
 
 | **Name** | *Age* | `Status`    |
-| -------- | ----- | ----------- |
+|----------|-------|-------------|
 | Max      | 25    | ~~Old~~ New |
 | Anna     | 30    | Active      |
 
@@ -351,6 +346,7 @@ $$
 ## 18. Comments
 
 [//]: # "This is a comment and will not be displayed"
+
 [comment]: <> "This is also a comment"
 
 <!--
@@ -376,7 +372,7 @@ and can be multiline
 * And [Links](https://example.com)
 
 | Column | Content                      |
-| ------ | ---------------------------- |
+|--------|------------------------------|
 | Code   | `print()`                    |
 | Link   | [Click](https://example.com) |
 | Format | **Bold** and *italic*        |
@@ -385,4 +381,5 @@ and can be multiline
 
 ## End of Test File
 
-This is a complete overview of Markdown syntax. Not all features are supported by every Markdown parser (e.g. footnotes, definition lists, math), but the basic syntax works everywhere.
+This is a complete overview of Markdown syntax. Not all features are supported by every Markdown parser (e.g. footnotes,
+definition lists, math), but the basic syntax works everywhere.
