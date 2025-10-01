@@ -1,4 +1,6 @@
 // Helper functions for parsing different formatting types
+import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
+
 function parseBold(text) {
     const match = text.match(/^\*\*(.*?)\*\*$/);
     if (match) {
@@ -22,6 +24,28 @@ function parseLink(text) {
     }
     return null;
 }
+
+export function parseMarkdownLine(line) {
+    if (line.trim() === "") return {type: 'empty'};
+
+    // Check for standalone links (entire line is a link)
+    const linkMatch = line.match(/^\[.*?\]\(.*?\)$/);
+    if (linkMatch) {
+        return {type: 'link', content: line};
+    }
+
+    for (const [type, config] of Object.entries(MARKDOWN_ELEMENTS)) {
+        if (!config.regex) continue; // Skip elements without regex (like paragraph)
+        const match = line.match(config.regex);
+        if (match) {
+            const content = type === 'list' ? config.prefix + match[1] : match[1];
+            return {type, content, config};
+        }
+    }
+
+    return {type: 'paragraph', content: line};
+}
+
 
 // Main function that parses formatted text
 export function parseFormattedText(text) {
@@ -94,3 +118,32 @@ export function parseFormattedText(text) {
 //   { text: "Link", bold: false, medium: false, link: "https://example.com" },
 //   { text: ".", bold: false, medium: false, link: null }
 // ]
+
+
+const MM_TO_INCH = 1 / 25.4;
+
+export function toInches(value, unit) {
+    return unit === 'mm' ? value * MM_TO_INCH : value;
+}
+
+// Function to calculate dimensions based on DPI, page format, and padding
+export function getPageDimensions(dpi = 96, pageFormat = 'letter', padding = 5) {
+    const format = PAGE_FORMATS[pageFormat] || PAGE_FORMATS.letter;
+
+    const widthIn = toInches(format.width, format.unit);
+    const heightIn = toInches(format.height, format.unit);
+
+    const PAGE_WIDTH = widthIn * dpi;
+    const PAGE_HEIGHT = heightIn * dpi;
+    const PADDING = (padding / 100) * Math.min(PAGE_WIDTH, PAGE_HEIGHT); // Padding as percentage of smallest dimension
+    const CONTENT_WIDTH = PAGE_WIDTH - 2 * PADDING;
+    const PAGE_GAP = 24; // Gap between pages
+
+    return {
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+        PADDING,
+        CONTENT_WIDTH,
+        PAGE_GAP
+    };
+}

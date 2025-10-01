@@ -1,7 +1,12 @@
-import { FONT_FAMILY, getPageDimensions, MARKDOWN_ELEMENTS, PLUGIN_UI_HEIGHT, PLUGIN_UI_WIDTH } from "./_constants.js";
-import { parseFormattedText } from "./_helpers.js"
+import {
+    FONT_FAMILY,
+    FONT_FAMILIES,
+    MARKDOWN_ELEMENTS,
+    PLUGIN_UI_DIMENSIONS
+} from "./_constants.js";
+import { parseFormattedText, parseMarkdownLine, getPageDimensions } from "./_helpers.js"
 
-figma.showUI(__html__, {width: PLUGIN_UI_WIDTH, height: PLUGIN_UI_HEIGHT});
+figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
 class ResumeBuilder {
     constructor(dimensions) {
@@ -17,14 +22,17 @@ class ResumeBuilder {
     async loadFonts() {
         if (this.fontsLoaded) return;
 
-        await Promise.all([
-            figma.loadFontAsync({family: FONT_FAMILY, style: "Regular"}),
-            figma.loadFontAsync({family: FONT_FAMILY, style: "Semi Bold"}),
-            figma.loadFontAsync({family: FONT_FAMILY, style: "Bold"}),
-            figma.loadFontAsync({family: "Slussen", style: "Regular"}),
-            figma.loadFontAsync({family: "Slussen", style: "Medium"}),
-            figma.loadFontAsync({family: "Slussen", style: "Bold"})
-        ]);
+        const fontPromises = FONT_FAMILIES.flatMap(font =>
+            font.weights.map(async weight => {
+                try {
+                    await figma.loadFontAsync({family: font.name, style: weight});
+                } catch (error) {
+                    console.warn(error);
+                }
+            })
+        );
+
+        await Promise.all(fontPromises);
 
         this.fontsLoaded = true;
     }
@@ -75,10 +83,8 @@ class ResumeBuilder {
                 fontStyle = "Semi Bold";
             }
 
-            await figma.loadFontAsync({ family: FONT_FAMILY, style: fontStyle });
-
             textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
-                family: FONT_FAMILY,
+                family: FONT_FAMILIES[0].name,
                 style: fontStyle,
             });
 
@@ -114,6 +120,7 @@ class ResumeBuilder {
 
         return textNode;
     }
+
     async addTextElement(content, fontSize, isBold, marginTop = 0, marginBottom = 4) {
         this.yOffset += marginTop;
 
@@ -152,28 +159,6 @@ class ResumeBuilder {
     }
 }
 
-
-function parseMarkdownLine(line) {
-    if (line.trim() === "") return {type: 'empty'};
-
-    // Check for standalone links (entire line is a link)
-    const linkMatch = line.match(/^\[.*?\]\(.*?\)$/);
-    if (linkMatch) {
-        return {type: 'link', content: line};
-    }
-
-    for (const [type, config] of Object.entries(MARKDOWN_ELEMENTS)) {
-        if (!config.regex) continue; // Skip elements without regex (like paragraph)
-        const match = line.match(config.regex);
-        if (match) {
-            const content = type === 'list' ? config.prefix + match[1] : match[1];
-            return {type, content, config};
-        }
-    }
-
-    return {type: 'paragraph', content: line};
-}
-
 figma.ui.onmessage = async (msg) => {
     if (msg.type === "create-resume") {
         try {
@@ -181,14 +166,14 @@ figma.ui.onmessage = async (msg) => {
             const selection = figma.currentPage.selection;
             if (selection.length === 1 && selection[0].type === 'TEXT') {
                 const textNode = selection[0];
-                await Promise.all([
-                    figma.loadFontAsync({ family: FONT_FAMILY, style: "Regular" }),
-                    figma.loadFontAsync({ family: FONT_FAMILY, style: "Semi Bold" }),
-                    figma.loadFontAsync({ family: FONT_FAMILY, style: "Bold" }),
-                    figma.loadFontAsync({ family: "Slussen", style: "Regular" }),
-                    figma.loadFontAsync({ family: "Slussen", style: "Medium" }),
-                    figma.loadFontAsync({ family: "Slussen", style: "Bold" })
-                ]);
+
+                const dpi = msg.dpi || 96;
+                const pageFormat = msg.pageFormat || 'letter';
+                const padding = msg.padding || 5;
+                const dimensions = getPageDimensions(dpi, pageFormat, padding);
+
+                const builder = new ResumeBuilder(dimensions);
+                await builder.loadFonts();
 
                 // Build formatted content with style information
                 const lines = msg.markdown.split('\n');
