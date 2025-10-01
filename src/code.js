@@ -1,10 +1,5 @@
-import {
-    FONT_FAMILY,
-    FONT_FAMILIES,
-    MARKDOWN_ELEMENTS,
-    PLUGIN_UI_DIMENSIONS
-} from "./_constants.js";
-import { parseFormattedText, parseMarkdownLine, getPageDimensions } from "./_helpers.js"
+import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./_constants.js";
+import { getPageDimensions, paseLine, paseSubstring } from "./_helpers.js"
 
 figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
@@ -59,14 +54,14 @@ class ResumeBuilder {
         return false;
     }
 
-    async createFormattedTextNode(content, fontSize, isBold) {
+    async createFormattedTextNode(content, fontSize, isBold, isItalic) {
         const textNode = figma.createText();
         textNode.fontSize = fontSize;
         textNode.x = this.dimensions.PADDING;
         textNode.y = this.yOffset;
         textNode.textAutoResize = "WIDTH_AND_HEIGHT";
 
-        const parts = parseFormattedText(content);
+        const parts = paseSubstring(content);
         let currentIndex = 0;
         let linkParts = []; // Store link information for later processing
 
@@ -77,10 +72,15 @@ class ResumeBuilder {
             textNode.insertCharacters(currentIndex, part.text);
 
             let fontStyle = "Regular";
-            if (part.bold || isBold) {
+            const effectiveBold = part.bold || isBold;
+            const effectiveItalic = part.italic || isItalic;
+
+            if (effectiveBold && effectiveItalic) {
+                fontStyle = "Bold Italic";
+            } else if (effectiveBold) {
                 fontStyle = "Bold";
-            } else if (part.medium) {
-                fontStyle = "Semi Bold";
+            } else if (effectiveItalic) {
+                fontStyle = "Italic";
             }
 
             textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
@@ -121,10 +121,10 @@ class ResumeBuilder {
         return textNode;
     }
 
-    async addTextElement(content, fontSize, isBold, marginTop = 0, marginBottom = 4) {
+    async addTextElement(content, fontSize, isBold, isItalic, marginTop = 0, marginBottom = 4) {
         this.yOffset += marginTop;
 
-        const textNode = await this.createFormattedTextNode(content, fontSize, isBold);
+        const textNode = await this.createFormattedTextNode(content, fontSize, isBold, isItalic);
 
         // Check if we need a new page and update position if so
         const newPage = this.checkAndCreateNewPage(textNode.height);
@@ -142,7 +142,7 @@ class ResumeBuilder {
 
         const content = lines.join(" ");
         const config = MARKDOWN_ELEMENTS.paragraph;
-        await this.addTextElement(content, config.fontSize, config.isBold, config.marginTop, config.marginBottom);
+        await this.addTextElement(content, config.fontSize, config.isBold, config.isItalic, config.marginTop, config.marginBottom);
     }
 
     async processList(listItems) {
@@ -150,7 +150,7 @@ class ResumeBuilder {
 
         const content = listItems.join("\n");
         const config = MARKDOWN_ELEMENTS.list;
-        await this.addTextElement(content, config.fontSize, config.isBold, config.marginTop, config.marginBottom);
+        await this.addTextElement(content, config.fontSize, config.isBold, config.isItalic, config.marginTop, config.marginBottom);
     }
 
     finish() {
@@ -167,7 +167,7 @@ figma.ui.onmessage = async (msg) => {
 
     try {
         // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
-        const { dpi = 96, pageFormat = 'letter', padding = 5, markdown } = msg;
+        const {dpi = 96, pageFormat = 'letter', padding = 5, markdown} = msg;
         const dimensions = getPageDimensions(dpi, pageFormat, padding);
         const lines = markdown.split("\n");
 
@@ -185,7 +185,7 @@ figma.ui.onmessage = async (msg) => {
 
     } catch (error) {
         console.error("An error occurred:", error);
-        figma.ui.postMessage({ type: "error", message: error.message });
+        figma.ui.postMessage({type: "error", message: error.message});
     }
 };
 
@@ -195,30 +195,44 @@ figma.ui.onmessage = async (msg) => {
  * @param {string[]} lines - Die Markdown-Zeilen als Array.
  */
 async function updateTextNodeWithMarkdown(textNode, lines) {
+    // Fonts laden
+    const fontPromises = FONT_FAMILIES.flatMap(font =>
+        font.weights.map(async weight => {
+            try {
+                await figma.loadFontAsync({family: font.name, style: weight});
+            } catch (error) {
+                console.warn(error);
+            }
+        })
+    );
+    await Promise.all(fontPromises);
+
     const defaultConfig = MARKDOWN_ELEMENTS.paragraph;
     let processedParts = [];
 
     // 1. Markdown-Zeilen parsen und in formatierte Teile umwandeln
     for (const line of lines) {
-        const parsed = parseMarkdownLine(line);
-        const { fontSize, isBold } = parsed.config || defaultConfig;
+        const parsed = paseLine(line);
+        const {fontSize, isBold, isItalic = false} = parsed.config || defaultConfig;
         const content = parsed.type === 'empty' ? '' : (parsed.content || line);
 
         // Inline-Formatierungen (fett, Links) weiterverarbeiten
         if (content) {
-            const inlineParts = parseFormattedText(content);
+            const inlineParts = paseSubstring(content);
+            console.log('Content:', content);
+            console.log('Parsed parts:', JSON.stringify(inlineParts, null, 2));
             for (const inlinePart of inlineParts) {
                 processedParts.push({
                     text: inlinePart.text,
                     fontSize: fontSize,
                     isBold: isBold || inlinePart.bold,
-                    isMedium: inlinePart.medium,
+                    isItalic: isItalic || inlinePart.italic,
                     link: inlinePart.link
                 });
             }
         }
         // Zeilenumbruch hinzufügen
-        processedParts.push({ text: '\n', fontSize, isBold, isMedium: false, link: null });
+        processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null});
     }
     processedParts.pop(); // Letzten, überflüssigen Zeilenumbruch entfernen
 
@@ -231,15 +245,20 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
 
         const rangeEnd = currentIndex + part.text.length;
         let fontStyle = "Regular";
-        if (part.isBold) fontStyle = "Bold";
-        else if (part.isMedium) fontStyle = "Semi Bold";
+        if (part.isBold && part.isItalic) {
+            fontStyle = "Bold Italic";
+        } else if (part.isBold) {
+            fontStyle = "Bold";
+        } else if (part.isItalic) {
+            fontStyle = "Italic";
+        }
 
         textNode.setRangeFontSize(currentIndex, rangeEnd, part.fontSize);
-        textNode.setRangeFontName(currentIndex, rangeEnd, { family: FONT_FAMILY, style: fontStyle });
+        textNode.setRangeFontName(currentIndex, rangeEnd, {family: FONT_FAMILIES[0].name, style: fontStyle});
 
         if (part.link) {
-            textNode.setRangeHyperlink(currentIndex, rangeEnd, { type: "URL", value: part.link });
-            textNode.setRangeFills(currentIndex, rangeEnd, [{ type: "SOLID", color: { r: 0, g: 0, b: 1 } }]);
+            textNode.setRangeHyperlink(currentIndex, rangeEnd, {type: "URL", value: part.link});
+            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: {r: 0, g: 0, b: 1}}]);
         }
 
         currentIndex = rangeEnd;
@@ -270,7 +289,7 @@ async function createResumeFrameFromMarkdown(dimensions, lines) {
     };
 
     for (const line of lines) {
-        const parsed = parseMarkdownLine(line);
+        const parsed = paseLine(line);
 
         switch (parsed.type) {
             case 'empty':
@@ -298,6 +317,7 @@ async function createResumeFrameFromMarkdown(dimensions, lines) {
                     parsed.content,
                     config.fontSize,
                     config.isBold,
+                    config.isItalic,
                     config.marginTop,
                     config.marginBottom
                 );

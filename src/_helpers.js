@@ -1,7 +1,7 @@
 // Helper functions for parsing different formatting types
 import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
 
-export function parseMarkdownLine(line) {
+export function paseLine(line) {
     if (line.trim() === "") return {type: 'empty'};
 
     // Check for standalone links (entire line is a link)
@@ -22,84 +22,53 @@ export function parseMarkdownLine(line) {
     return {type: 'paragraph', content: line};
 }
 
-const INLINE_FORMATTERS = {
-    bold: {
-        regex: /\*\*(.*?)\*\*/,
-        createPart: (match) => ({ text: match[1], bold: true }),
-    },
-    link: {
-        regex: /\[(.*?)\]\((.*?)\)/,
-        createPart: (match) => ({ text: match[1], link: match[2] }),
-    },
-    medium: {
-        regex: /\*([^*]+)\*/,
-        createPart: (match) => ({ text: match[1], medium: true }),
-    },
-};
-
-export function parseFormattedText(text) {
+export function paseSubstring(text) {
     const parts = [];
     let currentIndex = 0;
 
-    // 1. Baue den Master-Regex dynamisch zusammen
-    const formatterNames = Object.keys(INLINE_FORMATTERS);
-    const masterRegex = new RegExp(
-        Object.values(INLINE_FORMATTERS)
-            .map((config) => '(' + config.regex.source + ')')
-            .join('|'),
-        'g'
-    );
+    // Combined regex that matches all inline formatting
+    // Order matters: links first (most specific), then bold, then italic
+    const regex = /(\[.+?\]\(.+?\))|(\*\*[^*]+?\*\*)|(_[^_]+?_)/g;
 
     let match;
-    while ((match = masterRegex.exec(text)) !== null) {
-        // Text vor dem Match hinzufügen
+    while ((match = regex.exec(text)) !== null) {
+        // Add text before the match
         if (match.index > currentIndex) {
             parts.push({ text: text.slice(currentIndex, match.index) });
         }
 
-        // 2. Finde heraus, welcher Formatter den Treffer verursacht hat
-        let formatterName = null;
-        for (let i = 0; i < formatterNames.length; i++) {
-            if (match[i + 1] !== undefined) {
-                formatterName = formatterNames[i];
-                break;
+        const fullMatch = match[0];
+
+        // Check which pattern matched
+        if (match[1]) {
+            // Link: [text](url)
+            const linkMatch = fullMatch.match(/\[(.+?)\]\((.+?)\)/);
+            if (linkMatch) {
+                parts.push({ text: linkMatch[1], bold: false, italic: false, link: linkMatch[2] });
+            }
+        } else if (match[2]) {
+            // Bold: **text**
+            const boldMatch = fullMatch.match(/\*\*([^*]+?)\*\*/);
+            if (boldMatch) {
+                parts.push({ text: boldMatch[1], bold: true, italic: false, link: null });
+            }
+        } else if (match[3]) {
+            // Italic: _text_
+            const italicMatch = fullMatch.match(/_([^_]+?)_/);
+            if (italicMatch) {
+                parts.push({ text: italicMatch[1], bold: false, italic: true, link: null });
             }
         }
 
-        if (formatterName) {
-            const config = INLINE_FORMATTERS[formatterName];
-
-            // 3. Matche den Treffer erneut mit dem spezifischen Regex
-            const subMatch = match[0].match(config.regex);
-
-            // 4. Erstelle das formatierte Teil (mit Fallback bei null)
-            if (subMatch) {
-                parts.push(config.createPart(subMatch));
-            } else {
-                // Fallback: füge den Text unformatiert hinzu
-                parts.push({ text: match[0] });
-            }
-        } else {
-            // Fallback: füge den Text unformatiert hinzu
-            parts.push({ text: match[0] });
-        }
-
-        currentIndex = masterRegex.lastIndex;
+        currentIndex = regex.lastIndex;
     }
 
-    // Restlichen Text am Ende hinzufügen
+    // Add remaining text
     if (currentIndex < text.length) {
-        parts.push({ text: text.slice(currentIndex) });
+        parts.push({ text: text.slice(currentIndex), bold: false, italic: false, link: null });
     }
 
-    // Füge allen Teilen Standardwerte hinzu
-    return parts.map(function(part) {
-        return Object.assign({
-            bold: false,
-            medium: false,
-            link: null
-        }, part);
-    });
+    return parts;
 }
 
 
