@@ -40,9 +40,13 @@ Alternative syntax for H1 and H2:
 
 ==Highlighted Text== (extended syntax)
 
-Superscript<sup>text</sup>
+Superscript ^sup^
 
-Sub<sub>script</sub>
+HTML <sup>sup</sup>
+
+Subscript ~sub~
+
+HTML Subscript <sub>sub</sub>
 
 `Inline Code`
 

@@ -30,6 +30,8 @@ export interface InlinePart {
     strikethrough: boolean;
     underline: boolean;
     highlight: boolean;
+    subscript: boolean;
+    superscript: boolean;
 }
 
 export interface PageDimensions {

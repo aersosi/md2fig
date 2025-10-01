@@ -1,10 +1,12 @@
 // Helper functions for parsing different formatting types
-import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
 import markdownit from 'markdown-it';
 import markdownItMark from 'markdown-it-mark';
+import markdownItSub from 'markdown-it-sub';
+import markdownItSup from 'markdown-it-sup';
 import type Token from 'markdown-it/lib/token.mjs';
+import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
 
-import type { PageFormat, MarkdownBlock, InlinePart, PageDimensions } from "./types";
+import type { InlinePart, MarkdownBlock, PageDimensions, PageFormat } from "./types";
 
 // Initialize markdown-it parser
 const md = markdownit({
@@ -13,19 +15,25 @@ const md = markdownit({
     breaks: false,      // Don't convert \n to <br>
     typographer: false  // No typographic replacements
 })
-.enable('strikethrough')
-.use(markdownItMark);
+    .enable('strikethrough')
+    .use(markdownItMark)
+    .use(markdownItSub)
+    .use(markdownItSup);
 
 // markdown-it based parsing functions
 export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
     const tokens = md.parse(markdown, {});
-    console.log('🔍 Raw tokens from markdown-it:', JSON.stringify(tokens.map(t => ({ type: t.type, tag: t.tag, content: t.content })), null, 2));
+    console.log('🔍 Raw tokens from markdown-it:', JSON.stringify(tokens.map(t => ({
+        type: t.type,
+        tag: t.tag,
+        content: t.content
+    })), null, 2));
     const blocks: MarkdownBlock[] = [];
 
     for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
 
-        switch(token.type) {
+        switch (token.type) {
             case 'heading_open':
                 const level = token.tag; // 'h1', 'h2', etc.
                 const headingContent = tokens[i + 1]; // next token is inline content
@@ -99,7 +107,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                 break;
 
             case 'hr':
-                blocks.push({ type: 'empty', content: '', items: [] });
+                blocks.push({type: 'empty', content: '', items: []});
                 break;
         }
     }
@@ -109,14 +117,42 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 
 export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart[] {
     if (!inlineTokens || inlineTokens.length === 0) {
-        return [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false }];
+        return [{
+            text: '',
+            bold: false,
+            italic: false,
+            link: null,
+            strikethrough: false,
+            underline: false,
+            highlight: false,
+            subscript: false,
+            superscript: false
+        }];
     }
 
     const parts: InlinePart[] = [];
 
-    function walk(tokens: Token[], context?: { bold: boolean; italic: boolean; link: string | null; strikethrough: boolean; underline: boolean; highlight: boolean }) {
+    function walk(tokens: Token[], context?: {
+        bold: boolean;
+        italic: boolean;
+        link: string | null;
+        strikethrough: boolean;
+        underline: boolean;
+        highlight: boolean;
+        subscript: boolean;
+        superscript: boolean
+    }) {
         if (!context) {
-            context = { bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false };
+            context = {
+                bold: false,
+                italic: false,
+                link: null,
+                strikethrough: false,
+                underline: false,
+                highlight: false,
+                subscript: false,
+                superscript: false
+            };
         }
 
         for (let i = 0; i < tokens.length; i++) {
@@ -130,7 +166,9 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     link: context.link,
                     strikethrough: context.strikethrough,
                     underline: context.underline,
-                    highlight: context.highlight
+                    highlight: context.highlight,
+                    subscript: context.subscript,
+                    superscript: context.superscript
                 });
             } else if (token.type === 'strong_open') {
                 // Find matching close and walk children
@@ -149,7 +187,9 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     link: context.link,
                     strikethrough: context.strikethrough,
                     underline: context.underline,
-                    highlight: context.highlight
+                    highlight: context.highlight,
+                    subscript: context.subscript,
+                    superscript: context.superscript
                 };
                 walk(children, newContext);
                 i = j - 1; // Skip to closing tag
@@ -170,7 +210,9 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     link: context.link,
                     strikethrough: context.strikethrough,
                     underline: context.underline,
-                    highlight: context.highlight
+                    highlight: context.highlight,
+                    subscript: context.subscript,
+                    superscript: context.superscript
                 };
                 walk(children, newContext);
                 i = j - 1;
@@ -191,7 +233,9 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     link: context.link,
                     strikethrough: true,
                     underline: context.underline,
-                    highlight: context.highlight
+                    highlight: context.highlight,
+                    subscript: context.subscript,
+                    superscript: context.superscript
                 };
                 walk(children, newContext);
                 i = j - 1;
@@ -213,7 +257,9 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     link: href,
                     strikethrough: context.strikethrough,
                     underline: true,
-                    highlight: context.highlight
+                    highlight: context.highlight,
+                    subscript: context.subscript,
+                    superscript: context.superscript
                 };
                 walk(children, newContext);
                 i = j - 1;
@@ -234,12 +280,14 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     link: context.link,
                     strikethrough: context.strikethrough,
                     underline: context.underline,
-                    highlight: true
+                    highlight: true,
+                    subscript: context.subscript,
+                    superscript: context.superscript
                 };
                 walk(children, newContext);
                 i = j - 1;
             } else if (token.type === 'html_inline') {
-                // Handle HTML inline tags for underline
+                // Handle HTML inline tags for underline, subscript, and superscript
                 const htmlContent = token.content;
                 if (htmlContent === '<u>' || htmlContent === '<ins>') {
                     // Find matching closing tag
@@ -259,11 +307,105 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                         link: context.link,
                         strikethrough: context.strikethrough,
                         underline: true,
-                        highlight: context.highlight
+                        highlight: context.highlight,
+                        subscript: context.subscript,
+                        superscript: context.superscript
+                    };
+                    walk(children, newContext);
+                    i = j; // Skip to closing tag
+                } else if (htmlContent === '<sub>') {
+                    // Find matching closing tag
+                    let j = i + 1;
+                    const children = [];
+                    while (j < tokens.length) {
+                        if (tokens[j].type === 'html_inline' && tokens[j].content === '</sub>') {
+                            break;
+                        }
+                        children.push(tokens[j]);
+                        j++;
+                    }
+                    const newContext = {
+                        bold: context.bold,
+                        italic: context.italic,
+                        link: context.link,
+                        strikethrough: context.strikethrough,
+                        underline: context.underline,
+                        highlight: context.highlight,
+                        subscript: true,
+                        superscript: context.superscript
+                    };
+                    walk(children, newContext);
+                    i = j; // Skip to closing tag
+                } else if (htmlContent === '<sup>') {
+                    // Find matching closing tag
+                    let j = i + 1;
+                    const children = [];
+                    while (j < tokens.length) {
+                        if (tokens[j].type === 'html_inline' && tokens[j].content === '</sup>') {
+                            break;
+                        }
+                        children.push(tokens[j]);
+                        j++;
+                    }
+                    const newContext = {
+                        bold: context.bold,
+                        italic: context.italic,
+                        link: context.link,
+                        strikethrough: context.strikethrough,
+                        underline: context.underline,
+                        highlight: context.highlight,
+                        subscript: context.subscript,
+                        superscript: true
                     };
                     walk(children, newContext);
                     i = j; // Skip to closing tag
                 }
+            } else if (token.type === 'sub_open') {
+                // Subscript support (~text~)
+                let depth = 1;
+                let j = i + 1;
+                const children = [];
+                while (j < tokens.length && depth > 0) {
+                    if (tokens[j].type === 'sub_open') depth++;
+                    else if (tokens[j].type === 'sub_close') depth--;
+                    if (depth > 0) children.push(tokens[j]);
+                    j++;
+                }
+                const newContext = {
+                    bold: context.bold,
+                    italic: context.italic,
+                    link: context.link,
+                    strikethrough: context.strikethrough,
+                    underline: context.underline,
+                    highlight: context.highlight,
+                    subscript: true,
+                    superscript: context.superscript
+                };
+                walk(children, newContext);
+                i = j - 1;
+            } else if (token.type === 'sup_open') {
+                // Superscript support (^text^)
+                let depth = 1;
+                let j = i + 1;
+                const children = [];
+                while (j < tokens.length && depth > 0) {
+                    if (tokens[j].type === 'sup_open') depth++;
+                    else if (tokens[j].type === 'sup_close') depth--;
+                    if (depth > 0) children.push(tokens[j]);
+                    j++;
+                }
+                const newContext = {
+                    bold: context.bold,
+                    italic: context.italic,
+                    link: context.link,
+                    strikethrough: context.strikethrough,
+                    underline: context.underline,
+                    highlight: context.highlight,
+                    subscript: context.subscript,
+                    superscript: true
+                };
+                walk(children, newContext);
+                i = j - 1;
             } else if (token.type === 'code_inline') {
                 parts.push({
                     text: token.content,
@@ -272,14 +414,26 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     link: context.link,
                     strikethrough: context.strikethrough,
                     underline: context.underline,
-                    highlight: context.highlight
+                    highlight: context.highlight,
+                    subscript: context.subscript,
+                    superscript: context.superscript
                 });
             }
         }
     }
 
     walk(inlineTokens);
-    return parts.length > 0 ? parts : [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false }];
+    return parts.length > 0 ? parts : [{
+        text: '',
+        bold: false,
+        italic: false,
+        link: null,
+        strikethrough: false,
+        underline: false,
+        highlight: false,
+        subscript: false,
+        superscript: false
+    }];
 }
 
 export function toInches(value: number, unit: 'mm' | 'inch'): number {

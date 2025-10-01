@@ -85,7 +85,7 @@ class ResumeBuilder {
         textNode.y = this.yOffset;
         textNode.textAutoResize = "WIDTH_AND_HEIGHT";
 
-        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false }];
+        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false, subscript: false, superscript: false }];
         let currentIndex = 0;
         let linkParts = [];
         let highlightParts = [];
@@ -112,6 +112,12 @@ class ResumeBuilder {
                 family: FONT_FAMILIES[0].name,
                 style: fontStyle,
             });
+
+            // Apply subscript/superscript by reducing font size
+            if (part.subscript || part.superscript) {
+                const reducedSize = Math.round(fontSize * 0.7);
+                textNode.setRangeFontSize(currentIndex, currentIndex + part.text.length, reducedSize);
+            }
 
             // Apply text decoration (underline or strikethrough)
             if (part.strikethrough && part.underline) {
@@ -249,6 +255,12 @@ class ResumeBuilder {
                     family: FONT_FAMILIES[0].name,
                     style: fontStyle,
                 });
+
+                // Apply subscript/superscript by reducing font size
+                if (part.subscript || part.superscript) {
+                    const reducedSize = Math.round(config.fontSize * 0.7);
+                    textNode.setRangeFontSize(currentIndex, currentIndex + part.text.length, reducedSize);
+                }
 
                 // Apply text decoration
                 if (part.strikethrough) {
@@ -428,9 +440,10 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                 // Add inline parts
                 const inlineParts = parseInlineTokens(item.inlineTokens);
                 for (const inlinePart of inlineParts) {
+                    const partFontSize = (inlinePart.subscript || inlinePart.superscript) ? Math.round(fontSize * 0.7) : fontSize;
                     processedParts.push({
                         text: inlinePart.text,
-                        fontSize: fontSize,
+                        fontSize: partFontSize,
                         isBold: isBold || inlinePart.bold,
                         isItalic: isItalic || inlinePart.italic,
                         link: inlinePart.link,
@@ -446,9 +459,10 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
             const inlineParts = parseInlineTokens(block.inlineTokens);
 
             for (const inlinePart of inlineParts) {
+                const partFontSize = (inlinePart.subscript || inlinePart.superscript) ? Math.round(fontSize * 0.7) : fontSize;
                 processedParts.push({
                     text: inlinePart.text,
-                    fontSize: fontSize,
+                    fontSize: partFontSize,
                     isBold: isBold || inlinePart.bold,
                     isItalic: isItalic || inlinePart.italic,
                     link: inlinePart.link,
