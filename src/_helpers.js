@@ -13,6 +13,7 @@ const md = markdownit({
 // markdown-it based parsing functions
 export function parseMarkdownToBlocks(markdown) {
     const tokens = md.parse(markdown, {});
+    console.log('🔍 Raw tokens from markdown-it:', JSON.stringify(tokens.map(t => ({ type: t.type, tag: t.tag, content: t.content })), null, 2));
     const blocks = [];
 
     for (let i = 0; i < tokens.length; i++) {
@@ -43,9 +44,12 @@ export function parseMarkdownToBlocks(markdown) {
                 break;
 
             case 'bullet_list_open':
+            case 'ordered_list_open':
                 const listItems = [];
+                const isOrdered = token.type === 'ordered_list_open';
+                const closeType = isOrdered ? 'ordered_list_close' : 'bullet_list_close';
                 i++; // move to first list_item
-                while (tokens[i] && tokens[i].type !== 'bullet_list_close') {
+                while (tokens[i] && tokens[i].type !== closeType) {
                     if (tokens[i].type === 'list_item_open') {
                         // Find the paragraph content inside list item
                         let j = i + 1;
@@ -65,6 +69,7 @@ export function parseMarkdownToBlocks(markdown) {
                 }
                 blocks.push({
                     type: 'list',
+                    ordered: isOrdered,
                     items: listItems,
                     config: MARKDOWN_ELEMENTS.list
                 });

@@ -1,6 +1,11 @@
 import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./_constants.js";
 import { getPageDimensions, parseMarkdownToBlocks, parseInlineTokens } from "./_helpers.js"
 
+// Helper function to check if URL is absolute
+function isAbsoluteUrl(url) {
+    return /^https?:\/\//i.test(url);
+}
+
 figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
 class ResumeBuilder {
@@ -54,14 +59,14 @@ class ResumeBuilder {
         return false;
     }
 
-    async createFormattedTextNode(content, fontSize, isBold, isItalic) {
+    async createFormattedTextNode(content, fontSize, isBold, isItalic, inlineTokens) {
         const textNode = figma.createText();
         textNode.fontSize = fontSize;
         textNode.x = this.dimensions.PADDING;
         textNode.y = this.yOffset;
         textNode.textAutoResize = "WIDTH_AND_HEIGHT";
 
-        const parts = paseSubstring(content);
+        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null }];
         let currentIndex = 0;
         let linkParts = []; // Store link information for later processing
 
@@ -103,14 +108,16 @@ class ResumeBuilder {
 
         // Second pass: apply hyperlinks after all text is inserted
         for (const linkPart of linkParts) {
-            textNode.setRangeHyperlink(linkPart.startIndex, linkPart.endIndex, {
-                type: "URL",
-                value: linkPart.url
-            });
-            textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
-                type: "SOLID",
-                color: {r: 0, g: 0, b: 1}
-            }]);
+            if (isAbsoluteUrl(linkPart.url)) {
+                textNode.setRangeHyperlink(linkPart.startIndex, linkPart.endIndex, {
+                    type: "URL",
+                    value: linkPart.url
+                });
+                textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
+                    type: "SOLID",
+                    color: {r: 0, g: 0, b: 1}
+                }]);
+            }
         }
 
         if (textNode.width > this.dimensions.CONTENT_WIDTH) {
@@ -121,10 +128,10 @@ class ResumeBuilder {
         return textNode;
     }
 
-    async addTextElement(content, fontSize, isBold, isItalic, marginTop = 0, marginBottom = 4) {
+    async addTextElement(content, fontSize, isBold, isItalic, marginTop = 0, marginBottom = 4, inlineTokens = null) {
         this.yOffset += marginTop;
 
-        const textNode = await this.createFormattedTextNode(content, fontSize, isBold, isItalic);
+        const textNode = await this.createFormattedTextNode(content, fontSize, isBold, isItalic, inlineTokens);
 
         // Check if we need a new page and update position if so
         const newPage = this.checkAndCreateNewPage(textNode.height);
@@ -137,20 +144,101 @@ class ResumeBuilder {
         this.yOffset += textNode.height + marginBottom;
     }
 
-    async processParagraph(lines) {
-        if (lines.length === 0) return;
+    async addListElement(items, config) {
+        this.yOffset += config.marginTop;
 
-        const content = lines.join(" ");
-        const config = MARKDOWN_ELEMENTS.paragraph;
-        await this.addTextElement(content, config.fontSize, config.isBold, config.isItalic, config.marginTop, config.marginBottom);
-    }
+        const textNode = figma.createText();
+        textNode.fontSize = config.fontSize;
+        textNode.x = this.dimensions.PADDING;
+        textNode.y = this.yOffset;
+        textNode.textAutoResize = "WIDTH_AND_HEIGHT";
 
-    async processList(listItems) {
-        if (listItems.length === 0) return;
+        let currentIndex = 0;
+        let linkParts = [];
 
-        const content = listItems.join("\n");
-        const config = MARKDOWN_ELEMENTS.list;
-        await this.addTextElement(content, config.fontSize, config.isBold, config.isItalic, config.marginTop, config.marginBottom);
+        // Process each list item
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const prefix = MARKDOWN_ELEMENTS.list.prefix;
+
+            // Insert prefix
+            textNode.insertCharacters(currentIndex, prefix);
+            textNode.setRangeFontName(currentIndex, currentIndex + prefix.length, {
+                family: FONT_FAMILIES[0].name,
+                style: config.isBold ? "Bold" : "Regular",
+            });
+            currentIndex += prefix.length;
+
+            // Process inline tokens for this item
+            const parts = parseInlineTokens(item.inlineTokens);
+            for (const part of parts) {
+                if (part.text.length === 0) continue;
+
+                textNode.insertCharacters(currentIndex, part.text);
+
+                let fontStyle = "Regular";
+                const effectiveBold = part.bold || config.isBold;
+                const effectiveItalic = part.italic || config.isItalic;
+
+                if (effectiveBold && effectiveItalic) {
+                    fontStyle = "Bold Italic";
+                } else if (effectiveBold) {
+                    fontStyle = "Bold";
+                } else if (effectiveItalic) {
+                    fontStyle = "Italic";
+                }
+
+                textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
+                    family: FONT_FAMILIES[0].name,
+                    style: fontStyle,
+                });
+
+                if (part.link) {
+                    linkParts.push({
+                        startIndex: currentIndex,
+                        endIndex: currentIndex + part.text.length,
+                        url: part.link
+                    });
+                }
+
+                currentIndex += part.text.length;
+            }
+
+            // Add newline between items (except for last item)
+            if (i < items.length - 1) {
+                textNode.insertCharacters(currentIndex, '\n');
+                currentIndex += 1;
+            }
+        }
+
+        // Apply hyperlinks
+        for (const linkPart of linkParts) {
+            if (isAbsoluteUrl(linkPart.url)) {
+                textNode.setRangeHyperlink(linkPart.startIndex, linkPart.endIndex, {
+                    type: "URL",
+                    value: linkPart.url
+                });
+                textNode.setRangeFills(linkPart.startIndex, linkPart.endIndex, [{
+                    type: "SOLID",
+                    color: {r: 0, g: 0, b: 1}
+                }]);
+            }
+        }
+
+        if (textNode.width > this.dimensions.CONTENT_WIDTH) {
+            textNode.textAutoResize = "HEIGHT";
+            textNode.resize(this.dimensions.CONTENT_WIDTH, textNode.height);
+        }
+
+        // Check if we need a new page
+        const newPage = this.checkAndCreateNewPage(textNode.height);
+        if (newPage) {
+            textNode.x = this.dimensions.PADDING;
+            textNode.y = this.yOffset;
+        }
+
+        this.currentPage.appendChild(textNode);
+        this.yOffset += textNode.height + config.marginBottom;
     }
 
     finish() {
@@ -189,11 +277,6 @@ figma.ui.onmessage = async (msg) => {
     }
 };
 
-/**
- * Aktualisiert einen vorhandenen Textknoten mit formatiertem Markdown-Inhalt.
- * @param {TextNode} textNode - Der zu aktualisierende Figma-Textknoten.
- * @param {string[]} lines - Die Markdown-Zeilen als Array.
- */
 async function updateTextNodeWithMarkdown(textNode, lines) {
     // Fonts laden
     const fontPromises = FONT_FAMILIES.flatMap(font =>
@@ -214,14 +297,30 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
     const markdown = lines.join('\n');
     const blocks = parseMarkdownToBlocks(markdown);
 
-    for (const block of blocks) {
+    for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+        const block = blocks[blockIndex];
         const {fontSize, isBold, isItalic = false} = block.config || defaultConfig;
 
         if (block.type === 'list') {
             // Handle list items
-            for (const item of block.items) {
-                const inlineParts = parseInlineTokens(item.inlineTokens);
+            for (let itemIndex = 0; itemIndex < block.items.length; itemIndex++) {
+                const item = block.items[itemIndex];
 
+                // Add list prefix (bullet or number)
+                const prefix = block.ordered
+                    ? (itemIndex + 1) + '. '
+                    : MARKDOWN_ELEMENTS.list.prefix;
+
+                processedParts.push({
+                    text: prefix,
+                    fontSize: fontSize,
+                    isBold: isBold,
+                    isItalic: isItalic,
+                    link: null
+                });
+
+                // Add inline parts
+                const inlineParts = parseInlineTokens(item.inlineTokens);
                 for (const inlinePart of inlineParts) {
                     processedParts.push({
                         text: inlinePart.text,
@@ -247,11 +346,21 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
             }
             processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null});
         } else {
-            // Empty line
+            // Empty line - add extra newline to preserve spacing
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null});
+        }
+
+        // Add extra newline between blocks (to preserve paragraph spacing)
+        const nextBlock = blocks[blockIndex + 1];
+        if (nextBlock && block.type !== 'empty' && nextBlock.type !== 'empty') {
             processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null});
         }
     }
-    processedParts.pop(); // Remove last newline
+
+    // Remove last newline if it exists
+    if (processedParts.length > 0 && processedParts[processedParts.length - 1].text === '\n') {
+        processedParts.pop();
+    }
 
     // 2. Text im Knoten setzen und formatieren
     textNode.characters = processedParts.map(part => part.text).join('');
@@ -273,7 +382,7 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
         textNode.setRangeFontSize(currentIndex, rangeEnd, part.fontSize);
         textNode.setRangeFontName(currentIndex, rangeEnd, {family: FONT_FAMILIES[0].name, style: fontStyle});
 
-        if (part.link) {
+        if (part.link && isAbsoluteUrl(part.link)) {
             textNode.setRangeHyperlink(currentIndex, rangeEnd, {type: "URL", value: part.link});
             textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: {r: 0, g: 0, b: 1}}]);
         }
@@ -282,66 +391,60 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
     }
 }
 
-/**
- * Erstellt einen neuen Figma-Frame und füllt ihn basierend auf dem Markdown-Inhalt.
- * @param {object} dimensions - Die Abmessungen für den neuen Frame.
- * @param {string[]} lines - Die Markdown-Zeilen als Array.
- */
 async function createResumeFrameFromMarkdown(dimensions, lines) {
     const builder = new ResumeBuilder(dimensions);
     await builder.loadFonts();
 
-    let paragraphLines = [];
-    let listItems = [];
+    // Parse with markdown-it
+    const markdown = lines.join('\n');
+    const blocks = parseMarkdownToBlocks(markdown);
 
-    const processPendingElements = async () => {
-        if (paragraphLines.length > 0) {
-            await builder.processParagraph(paragraphLines);
-            paragraphLines = [];
-        }
-        if (listItems.length > 0) {
-            await builder.processList(listItems);
-            listItems = [];
-        }
-    };
+    for (const block of blocks) {
+        const config = block.config || MARKDOWN_ELEMENTS.paragraph;
 
-    for (const line of lines) {
-        const parsed = paseLine(line);
-
-        switch (parsed.type) {
+        switch (block.type) {
             case 'empty':
-                await processPendingElements();
+                // Empty line - create new text node on next content
                 builder.yOffset += 8;
                 break;
+
             case 'paragraph':
-                await processPendingElements(); // Verarbeite Listen, bevor ein neuer Paragraph beginnt
-                paragraphLines.push(parsed.content);
+                // Create text node for paragraph
+                await builder.addTextElement(
+                    block.content,
+                    config.fontSize,
+                    config.isBold,
+                    config.isItalic,
+                    config.marginTop,
+                    config.marginBottom,
+                    block.inlineTokens
+                );
                 break;
+
             case 'list':
-                await processPendingElements(); // Verarbeite Paragraphen, bevor eine neue Liste beginnt
-                listItems.push(parsed.content);
+                // Create text node for entire list with all items
+                await builder.addListElement(block.items, config);
                 break;
-            case 'link': // Links werden wie Header behandelt, nur mit Paragraphen-Stil
+
             case 'h1':
             case 'h2':
             case 'h3':
             case 'h4':
             case 'h5':
             case 'h6':
-                await processPendingElements();
-                const config = parsed.config || MARKDOWN_ELEMENTS.paragraph;
+                // Create text node for heading
                 await builder.addTextElement(
-                    parsed.content,
+                    block.content,
                     config.fontSize,
                     config.isBold,
                     config.isItalic,
                     config.marginTop,
-                    config.marginBottom
+                    config.marginBottom,
+                    block.inlineTokens
                 );
                 break;
         }
     }
 
-    await processPendingElements(); // Verarbeite restliche Elemente am Ende
     builder.finish();
 }
