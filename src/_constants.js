@@ -19,10 +19,10 @@ export const FONT_FAMILIES = [
 export const MARKDOWN_ELEMENTS = {
     'h1': {regex: /^#\s+(.*)$/, fontSize: 24, isBold: true, isItalic: false, marginTop: 10, marginBottom: 4},
     'h2': {regex: /^##\s+(.*)$/, fontSize: 18, isBold: true, isItalic: false, marginTop: 9, marginBottom: 4},
-    'h3': {regex: /^###\s+(.*)$/, fontSize: 14, isBold: true, isItalic: false, marginTop: 8, marginBottom: 4},
-    'h4': {regex: /^####\s+(.*)$/, fontSize: 12, isBold: true, isItalic: false, marginTop: 7, marginBottom: 4},
+    'h3': {regex: /^###\s+(.*)$/, fontSize: 16, isBold: true, isItalic: false, marginTop: 8, marginBottom: 4},
+    'h4': {regex: /^####\s+(.*)$/, fontSize: 14, isBold: true, isItalic: false, marginTop: 7, marginBottom: 4},
     'h5': {regex: /^#####\s+(.*)$/, fontSize: 12, isBold: true, isItalic: false, marginTop: 6, marginBottom: 4},
-    'h6': {regex: /^######\s+(.*)$/, fontSize: 12, isBold: true, isItalic: false, marginTop: 5, marginBottom: 4},
+    'h6': {regex: /^######\s+(.*)$/, fontSize: 10, isBold: true, isItalic: false, marginTop: 5, marginBottom: 4},
     'list': {
         regex: /^[-*]\s+(.*)$/,
         fontSize: 10,
