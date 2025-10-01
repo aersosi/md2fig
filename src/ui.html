@@ -1,89 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 20px;
-      margin: 0;
-    }
-    .container {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      max-width: 600px;
-      margin: 0 auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    label {
-      font-weight: bold;
-    }
-    textarea {
-      width: 100%;
-      height: 200px;
-      resize: vertical;
-      padding: 12px;
-      font-family: monospace;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      line-height: 1.5;
-    }
-    button {
-      background: #007bfc;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 5px;
-      font-size: 16px;
-      cursor: pointer;
-      align-self: center;
-    }
-    button:hover {
-      background: #005bb5;
-    }
-    .error-message {
-      color: red;
-      font-size: 14px;
-      margin-top: -8px;
-    }
-  </style>
+    <title>md2fig</title>
+    <link rel="stylesheet" href="index.css">
 </head>
 <body>
-  <div class="container">
-    <h2>Markdown to Figma</h2>
-    <div class="field">
-      <label for="markdown-input">Paste your Markdown content:</label>
-      <textarea id="markdown-input" placeholder="Paste your Markdown here..."></textarea>
+<div class="grid">
+    <div class="flex gap-base">
+        <div class="grid w-full">
+            <label class="font-sm font-bold" for="format-select">Page Format</label>
+            <select class="p-sm radius-base bg-white" id="format-select">
+                <optgroup label="ISO Standard">
+                    <option value="a4" selected>A4 - 210 × 297 mm</option>
+                    <option value="a3">A3 - 297 × 420 mm</option>
+                </optgroup>
+                <optgroup label="US Standard">
+                    <option value="letter">Letter - 8.5 × 11 in</option>
+                    <option value="legal">Legal - 8.5 × 14 in</option>
+                    <option value="tabloid">Tabloid - 11 × 17 in</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="grid w-full">
+            <label class="font-sm font-bold" for="dpi-select">Resolution</label>
+            <select class="p-sm radius-base bg-white" id="dpi-select">
+                <optgroup label="Web">
+                    <option value="72">72 DPI</option>
+                    <option value="96" selected>96 DPI</option>
+                </optgroup>
+                <optgroup label="Print">
+                    <option value="122">122 DPI</option>
+                    <option value="150">150 DPI</option>
+                    <option value="232.16445">1920 px</option>
+                    <option value="300">300 DPI</option>
+                </optgroup>
+            </select>
+        </div>
     </div>
-    <button id="generate">Generate Output</button>
-    <div class="error-message" id="error-message"></div>
-  </div>
+    <div class="grid">
+        <label class="font-sm font-bold" for="padding-input">Padding (%)</label>
+        <input type="number" class="p-sm radius-base bg-white" id="padding-input"
+               value="5" min="0" max="20" step="0.1"
+               placeholder="5">
+    </div>
+    <div class="grid font-mono">
+        <label class="font-sm font-bold" for="markdown-input">Content</label>
+        <textarea class="radius-base" id="markdown-input" placeholder="Paste your Markdown here"></textarea>
+    </div>
+    <div class="error-message py-base" id="error-message"></div>
+</div>
 
-  <script>
+<button class="btn font-base font-bold radius-base w-full py-sm" id="generate">Generate Output</button>
+
+<script>
     document.getElementById('generate').onclick = () => {
-      const markdown = document.getElementById('markdown-input').value.trim();
-      if (!markdown) {
-        document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
-        return;
-      }
-      document.getElementById('error-message').textContent = '';
-      parent.postMessage({ pluginMessage: { type: 'create-resume', markdown } }, '*');
+        const markdown = document.getElementById('markdown-input').value.trim();
+        const dpi = parseInt(document.getElementById('dpi-select').value);
+        const pageFormat = document.getElementById('format-select').value;
+        const padding = parseFloat(document.getElementById('padding-input').value) || 5;
+        if (!markdown) {
+            document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
+            return;
+        }
+        document.getElementById('error-message').textContent = '';
+        parent.postMessage({pluginMessage: {type: 'create-resume', markdown, dpi, pageFormat, padding}}, '*');
     };
 
     onmessage = (event) => {
-      if (event.data.pluginMessage.type === 'error') {
-        document.getElementById('error-message').textContent = 'Error: ' + event.data.pluginMessage.message;
-      }
+        if (event.data.pluginMessage.type === 'error') {
+            document.getElementById('error-message').textContent = 'Error: ' + event.data.pluginMessage.message;
+        }
     };
-  </script>
+</script>
 </body>
 </html>
