@@ -21,10 +21,24 @@ textarea {
 }
 
 .btn {
-    background: #007bfc;
-    color: white;
+    background: #a6a6a6;
+    color: black;
     border: none;
     cursor: pointer;
+    &.blue {
+        background: #0079f2;
+        color: white;
+        &:hover {
+            background: #006cd9;
+        }
+    }
+    &.green {
+        background: #28f200;
+        color: white;
+        &:hover {
+            background: #24d900;
+        }
+    }
 }
 
 .btn:hover {
@@ -44,7 +58,7 @@ select {
     -webkit-appearance: none;
     -moz-appearance: none;
 
-    background: url("data:image/svg+xml;utf8,<svg fill='black' height='12' viewBox='0 0 24 24' width='12' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") no-repeat right 0rem center; /* custom arrow */
+    background: url("data:image/svg+xml;utf8,<svg fill='black' height='12' viewBox='0 0 24 24' width='12' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") no-repeat right 0 center; /* custom arrow */
     background-size: 1.5rem;
 }
 

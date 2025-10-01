@@ -17,7 +17,7 @@ export interface MarkdownBlock {
     content: string;
     config?: MarkdownElementConfig;
     inlineTokens?: Token[];
-    items: Array<{ content: string; inlineTokens: Token[] }>;
+    items: Array<{ content: string; inlineTokens: Token[]; level: number }>;
     ordered?: boolean;
 }
 
