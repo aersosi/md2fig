@@ -24,7 +24,7 @@ export const MARKDOWN_ELEMENTS: Record<string, MarkdownElementConfig> = {
     'h4': {fontSize: 14, style: 'bold', marginTop: 7, marginBottom: 4},
     'h5': {fontSize: 12, style: 'bold', marginTop: 6, marginBottom: 4},
     'h6': {fontSize: 10, style: 'bold', marginTop: 5, marginBottom: 4},
-    'list': {fontSize: 10, style: 'regular', marginTop: 4, marginBottom: 4, prefix: '• '},
+    'list': {fontSize: 10, style: 'regular', marginTop: 4, marginBottom: 4, prefix: '• ', subitemIndent: 5},
     'paragraph': {fontSize: 10, style: 'regular', marginTop: 2, marginBottom: 4}
 };
 

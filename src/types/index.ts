@@ -10,6 +10,7 @@ export interface MarkdownElementConfig {
     marginTop: number;
     marginBottom: number;
     prefix?: string;
+    subitemIndent?: number;
 }
 
 export interface MarkdownBlock {

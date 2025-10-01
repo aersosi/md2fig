@@ -207,20 +207,23 @@ class ResumeBuilder {
         let currentIndex = 0;
         let linkParts = [];
         let highlightParts = [];
+        let indentRanges = [];
 
         // Process each list item
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
-            const indent = '    '.repeat(item.level);
             const prefix = MARKDOWN_ELEMENTS.list.prefix || '• ';
 
-            // Insert indent + prefix
-            textNode.insertCharacters(currentIndex, indent + prefix);
-            const prefixLength = indent.length + prefix.length;
+            // Insert prefix only (no spaces for indentation)
+            textNode.insertCharacters(currentIndex, prefix);
+            const prefixLength = prefix.length;
             textNode.setRangeFontName(currentIndex, currentIndex + prefixLength, {
                 family: FONT_FAMILIES[0].name,
                 style: isBold ? "Bold" : "Regular",
             });
+
+            // Store line start position and indent level for later
+            const lineStart = currentIndex;
             currentIndex += prefixLength;
 
             // Process inline tokens for this item
@@ -276,6 +279,21 @@ class ResumeBuilder {
             if (i < items.length - 1) {
                 textNode.insertCharacters(currentIndex, '\n');
                 currentIndex += 1;
+            }
+
+            // Store indent info for this line
+            indentRanges.push({
+                lineStart: lineStart,
+                level: item.level
+            });
+        }
+
+        // Apply paragraph indents for nested list items
+        const subitemIndent = config.subitemIndent || 16;
+        for (const indentRange of indentRanges) {
+            if (indentRange.level > 0) {
+                const indentAmount = indentRange.level * subitemIndent;
+                textNode.setRangeParagraphIndent(indentRange.lineStart, indentRange.lineStart + 1, indentAmount);
             }
         }
 
@@ -390,23 +408,21 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
             for (let itemIndex = 0; itemIndex < block.items.length; itemIndex++) {
                 const item = block.items[itemIndex];
 
-                // Add indent based on level
-                const indent = '    '.repeat(item.level);
-
-                // Add list prefix (bullet or number)
+                // Add list prefix (bullet or number) without spaces
                 const prefix = block.ordered
                     ? (itemIndex + 1) + '. '
                     : MARKDOWN_ELEMENTS.list.prefix;
 
                 processedParts.push({
-                    text: indent + prefix,
+                    text: prefix,
                     fontSize: fontSize,
                     isBold: isBold,
                     isItalic: isItalic,
                     link: null,
                     strikethrough: false,
                     underline: false,
-                    highlight: false
+                    highlight: false,
+                    indentLevel: item.level
                 });
 
                 // Add inline parts
@@ -420,10 +436,11 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                         link: inlinePart.link,
                         strikethrough: inlinePart.strikethrough,
                         underline: inlinePart.underline,
-                        highlight: inlinePart.highlight
+                        highlight: inlinePart.highlight,
+                        indentLevel: undefined
                     });
                 }
-                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false});
+                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
             }
         } else if (block.type !== 'empty') {
             const inlineParts = parseInlineTokens(block.inlineTokens);
@@ -437,19 +454,20 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                     link: inlinePart.link,
                     strikethrough: inlinePart.strikethrough,
                     underline: inlinePart.underline,
-                    highlight: inlinePart.highlight
+                    highlight: inlinePart.highlight,
+                    indentLevel: undefined
                 });
             }
-            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false});
+            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
         } else {
             // Empty line - add extra newline to preserve spacing
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false});
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
         }
 
         // Add extra newline between blocks (to preserve paragraph spacing)
         const nextBlock = blocks[blockIndex + 1];
         if (nextBlock && block.type !== 'empty' && nextBlock.type !== 'empty') {
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false});
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
         }
     }
 
@@ -477,6 +495,13 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
 
         textNode.setRangeFontSize(currentIndex, rangeEnd, part.fontSize);
         textNode.setRangeFontName(currentIndex, rangeEnd, {family: FONT_FAMILIES[0].name, style: fontStyle});
+
+        // Apply paragraph indent if this part has an indent level
+        if (part.indentLevel !== undefined && part.indentLevel > 0) {
+            const subitemIndent = MARKDOWN_ELEMENTS.list.subitemIndent || 16;
+            const indentAmount = part.indentLevel * subitemIndent;
+            textNode.setRangeParagraphIndent(currentIndex, currentIndex + 1, indentAmount);
+        }
 
         // Apply text decoration
         if (part.strikethrough) {
