@@ -7,11 +7,11 @@ import type { PageFormat, MarkdownBlock, InlinePart, PageDimensions } from "./ty
 
 // Initialize markdown-it parser
 const md = markdownit({
-    html: false,        // No HTML allowed (security)
+    html: true,         // Allow HTML for underline support
     linkify: true,      // Auto-convert URLs to links
     breaks: false,      // Don't convert \n to <br>
     typographer: false  // No typographic replacements
-});
+}).enable('strikethrough');
 
 // markdown-it based parsing functions
 export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
@@ -106,14 +106,14 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 
 export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart[] {
     if (!inlineTokens || inlineTokens.length === 0) {
-        return [{ text: '', bold: false, italic: false, link: null }];
+        return [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false }];
     }
 
     const parts: InlinePart[] = [];
 
-    function walk(tokens: Token[], context?: { bold: boolean; italic: boolean; link: string | null }) {
+    function walk(tokens: Token[], context?: { bold: boolean; italic: boolean; link: string | null; strikethrough: boolean; underline: boolean }) {
         if (!context) {
-            context = { bold: false, italic: false, link: null };
+            context = { bold: false, italic: false, link: null, strikethrough: false, underline: false };
         }
 
         for (let i = 0; i < tokens.length; i++) {
@@ -124,7 +124,9 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     text: token.content,
                     bold: context.bold,
                     italic: context.italic,
-                    link: context.link
+                    link: context.link,
+                    strikethrough: context.strikethrough,
+                    underline: context.underline
                 });
             } else if (token.type === 'strong_open') {
                 // Find matching close and walk children
@@ -137,7 +139,13 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     if (depth > 0) children.push(tokens[j]);
                     j++;
                 }
-                const newContext = { bold: true, italic: context.italic, link: context.link };
+                const newContext = {
+                    bold: true,
+                    italic: context.italic,
+                    link: context.link,
+                    strikethrough: context.strikethrough,
+                    underline: context.underline
+                };
                 walk(children, newContext);
                 i = j - 1; // Skip to closing tag
             } else if (token.type === 'em_open') {
@@ -151,7 +159,33 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     if (depth > 0) children.push(tokens[j]);
                     j++;
                 }
-                const newContext = { bold: context.bold, italic: true, link: context.link };
+                const newContext = {
+                    bold: context.bold,
+                    italic: true,
+                    link: context.link,
+                    strikethrough: context.strikethrough,
+                    underline: context.underline
+                };
+                walk(children, newContext);
+                i = j - 1;
+            } else if (token.type === 's_open') {
+                // Strikethrough support
+                let depth = 1;
+                let j = i + 1;
+                const children = [];
+                while (j < tokens.length && depth > 0) {
+                    if (tokens[j].type === 's_open') depth++;
+                    else if (tokens[j].type === 's_close') depth--;
+                    if (depth > 0) children.push(tokens[j]);
+                    j++;
+                }
+                const newContext = {
+                    bold: context.bold,
+                    italic: context.italic,
+                    link: context.link,
+                    strikethrough: true,
+                    underline: context.underline
+                };
                 walk(children, newContext);
                 i = j - 1;
             } else if (token.type === 'link_open') {
@@ -166,22 +200,55 @@ export function parseInlineTokens(inlineTokens: Token[] | undefined): InlinePart
                     if (depth > 0) children.push(tokens[j]);
                     j++;
                 }
-                const newContext = { bold: context.bold, italic: context.italic, link: href };
+                const newContext = {
+                    bold: context.bold,
+                    italic: context.italic,
+                    link: href,
+                    strikethrough: context.strikethrough,
+                    underline: true
+                };
                 walk(children, newContext);
                 i = j - 1;
+            } else if (token.type === 'html_inline') {
+                // Handle HTML inline tags for underline
+                const htmlContent = token.content;
+                if (htmlContent === '<u>' || htmlContent === '<ins>') {
+                    // Find matching closing tag
+                    const closeTag = htmlContent === '<u>' ? '</u>' : '</ins>';
+                    let j = i + 1;
+                    const children = [];
+                    while (j < tokens.length) {
+                        if (tokens[j].type === 'html_inline' && tokens[j].content === closeTag) {
+                            break;
+                        }
+                        children.push(tokens[j]);
+                        j++;
+                    }
+                    const newContext = {
+                        bold: context.bold,
+                        italic: context.italic,
+                        link: context.link,
+                        strikethrough: context.strikethrough,
+                        underline: true
+                    };
+                    walk(children, newContext);
+                    i = j; // Skip to closing tag
+                }
             } else if (token.type === 'code_inline') {
                 parts.push({
                     text: token.content,
                     bold: context.bold,
                     italic: context.italic,
-                    link: context.link
+                    link: context.link,
+                    strikethrough: context.strikethrough,
+                    underline: context.underline
                 });
             }
         }
     }
 
     walk(inlineTokens);
-    return parts.length > 0 ? parts : [{ text: '', bold: false, italic: false, link: null }];
+    return parts.length > 0 ? parts : [{ text: '', bold: false, italic: false, link: null, strikethrough: false, underline: false }];
 }
 
 export function toInches(value: number, unit: 'mm' | 'inch'): number {

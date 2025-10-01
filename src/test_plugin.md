@@ -38,11 +38,15 @@ Alternative syntax for H1 and H2:
 
 ~~Strikethrough Text~~
 
-<u>Underlined Text</u> (HTML)
+<u>Underlined HTML</u>
+
+<ins>Underlined Github</ins>
 
 ==Highlighted Text== (extended syntax)
 
-Superscript<sup>text</sup> and Sub<sub>script</sub>
+Superscript<sup>text</sup>
+
+Sub<sub>script</sub>
 
 `Inline Code`
 

@@ -26,6 +26,8 @@ export interface InlinePart {
     bold: boolean;
     italic: boolean;
     link: string | null;
+    strikethrough: boolean;
+    underline: boolean;
 }
 
 export interface PageDimensions {

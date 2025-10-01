@@ -82,7 +82,7 @@ class ResumeBuilder {
         textNode.y = this.yOffset;
         textNode.textAutoResize = "WIDTH_AND_HEIGHT";
 
-        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null }];
+        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null, strikethrough: false, underline: false }];
         let currentIndex = 0;
         let linkParts = []; // Store link information for later processing
 
@@ -108,6 +108,16 @@ class ResumeBuilder {
                 family: FONT_FAMILIES[0].name,
                 style: fontStyle,
             });
+
+            // Apply text decoration (underline or strikethrough)
+            if (part.strikethrough && part.underline) {
+                // Figma doesn't support both, prioritize strikethrough
+                textNode.setRangeTextDecoration(currentIndex, currentIndex + part.text.length, "STRIKETHROUGH");
+            } else if (part.strikethrough) {
+                textNode.setRangeTextDecoration(currentIndex, currentIndex + part.text.length, "STRIKETHROUGH");
+            } else if (part.underline) {
+                textNode.setRangeTextDecoration(currentIndex, currentIndex + part.text.length, "UNDERLINE");
+            }
 
             // Store link info for later processing
             if (part.link) {
@@ -215,6 +225,13 @@ class ResumeBuilder {
                     family: FONT_FAMILIES[0].name,
                     style: fontStyle,
                 });
+
+                // Apply text decoration
+                if (part.strikethrough) {
+                    textNode.setRangeTextDecoration(currentIndex, currentIndex + part.text.length, "STRIKETHROUGH");
+                } else if (part.underline) {
+                    textNode.setRangeTextDecoration(currentIndex, currentIndex + part.text.length, "UNDERLINE");
+                }
 
                 if (part.link) {
                     linkParts.push({
@@ -350,7 +367,9 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                     fontSize: fontSize,
                     isBold: isBold,
                     isItalic: isItalic,
-                    link: null
+                    link: null,
+                    strikethrough: false,
+                    underline: false
                 });
 
                 // Add inline parts
@@ -361,10 +380,12 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                         fontSize: fontSize,
                         isBold: isBold || inlinePart.bold,
                         isItalic: isItalic || inlinePart.italic,
-                        link: inlinePart.link
+                        link: inlinePart.link,
+                        strikethrough: inlinePart.strikethrough,
+                        underline: inlinePart.underline
                     });
                 }
-                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null});
+                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false});
             }
         } else if (block.type !== 'empty') {
             const inlineParts = parseInlineTokens(block.inlineTokens);
@@ -375,19 +396,21 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
                     fontSize: fontSize,
                     isBold: isBold || inlinePart.bold,
                     isItalic: isItalic || inlinePart.italic,
-                    link: inlinePart.link
+                    link: inlinePart.link,
+                    strikethrough: inlinePart.strikethrough,
+                    underline: inlinePart.underline
                 });
             }
-            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null});
+            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false});
         } else {
             // Empty line - add extra newline to preserve spacing
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null});
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false});
         }
 
         // Add extra newline between blocks (to preserve paragraph spacing)
         const nextBlock = blocks[blockIndex + 1];
         if (nextBlock && block.type !== 'empty' && nextBlock.type !== 'empty') {
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null});
+            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false});
         }
     }
 
@@ -415,6 +438,13 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): 
 
         textNode.setRangeFontSize(currentIndex, rangeEnd, part.fontSize);
         textNode.setRangeFontName(currentIndex, rangeEnd, {family: FONT_FAMILIES[0].name, style: fontStyle});
+
+        // Apply text decoration
+        if (part.strikethrough) {
+            textNode.setRangeTextDecoration(currentIndex, rangeEnd, "STRIKETHROUGH");
+        } else if (part.underline) {
+            textNode.setRangeTextDecoration(currentIndex, rangeEnd, "UNDERLINE");
+        }
 
         if (part.link && isAbsoluteUrl(part.link)) {
             textNode.setRangeHyperlink(currentIndex, rangeEnd, {type: "URL", value: part.link});
