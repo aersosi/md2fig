@@ -20,7 +20,10 @@
   },
   "homepage": "https://github.com/aersosi/md2fig#readme",
   "devDependencies": {
-    "esbuild": "^0.25.10"
+    "@figma/plugin-typings": "^1.117.0",
+    "@types/markdown-it": "^14.1.2",
+    "esbuild": "^0.25.10",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "chokidar": "^4.0.3",

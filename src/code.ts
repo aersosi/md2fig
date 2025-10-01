@@ -1,15 +1,25 @@
 import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./_constants.js";
-import { getPageDimensions, parseMarkdownToBlocks, parseInlineTokens } from "./_helpers.js"
+import { getPageDimensions, parseMarkdownToBlocks, parseInlineTokens } from "./_helpers.js";
+import type { PageDimensions, MarkdownBlock, InlinePart, PluginMessage } from "./types/index.js";
+import type Token from 'markdown-it/lib/token.mjs';
 
 // Helper function to check if URL is absolute
-function isAbsoluteUrl(url) {
+function isAbsoluteUrl(url: string): boolean {
     return /^https?:\/\//i.test(url);
 }
 
 figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
 class ResumeBuilder {
-    constructor(dimensions) {
+    dimensions: PageDimensions;
+    yOffset: number;
+    pageNumber: number;
+    xPosition: number;
+    currentPage: FrameNode;
+    allPages: FrameNode[];
+    fontsLoaded: boolean;
+
+    constructor(dimensions: PageDimensions) {
         this.dimensions = dimensions;
         this.yOffset = dimensions.PADDING;
         this.pageNumber = 1;
@@ -19,7 +29,7 @@ class ResumeBuilder {
         this.fontsLoaded = false;
     }
 
-    async loadFonts() {
+    async loadFonts(): Promise<void> {
         if (this.fontsLoaded) return;
 
         const fontPromises = FONT_FAMILIES.flatMap(font =>
@@ -37,7 +47,7 @@ class ResumeBuilder {
         this.fontsLoaded = true;
     }
 
-    createNewPage() {
+    createNewPage(): FrameNode {
         const page = figma.createFrame();
         page.resize(this.dimensions.PAGE_WIDTH, this.dimensions.PAGE_HEIGHT);
         page.x = this.xPosition;
@@ -47,7 +57,7 @@ class ResumeBuilder {
         return page;
     }
 
-    checkAndCreateNewPage(textHeight) {
+    checkAndCreateNewPage(textHeight: number): boolean {
         if (this.yOffset + textHeight + this.dimensions.PADDING > this.dimensions.PAGE_HEIGHT) {
             this.pageNumber += 1;
             this.xPosition += this.dimensions.PAGE_WIDTH + this.dimensions.PAGE_GAP;
@@ -59,7 +69,7 @@ class ResumeBuilder {
         return false;
     }
 
-    async createFormattedTextNode(content, fontSize, isBold, isItalic, inlineTokens) {
+    async createFormattedTextNode(content: string, fontSize: number, isBold: boolean, isItalic: boolean, inlineTokens?: Token[]): Promise<TextNode> {
         const textNode = figma.createText();
         textNode.fontSize = fontSize;
         textNode.x = this.dimensions.PADDING;
@@ -128,7 +138,7 @@ class ResumeBuilder {
         return textNode;
     }
 
-    async addTextElement(content, fontSize, isBold, isItalic, marginTop = 0, marginBottom = 4, inlineTokens = null) {
+    async addTextElement(content: string, fontSize: number, isBold: boolean, isItalic: boolean, marginTop: number = 0, marginBottom: number = 4, inlineTokens?: Token[]): Promise<void> {
         this.yOffset += marginTop;
 
         const textNode = await this.createFormattedTextNode(content, fontSize, isBold, isItalic, inlineTokens);
@@ -144,7 +154,7 @@ class ResumeBuilder {
         this.yOffset += textNode.height + marginBottom;
     }
 
-    async addListElement(items, config) {
+    async addListElement(items: Array<{ content: string; inlineTokens: Token[] }>, config: any): Promise<void> {
         this.yOffset += config.marginTop;
 
         const textNode = figma.createText();
@@ -241,26 +251,26 @@ class ResumeBuilder {
         this.yOffset += textNode.height + config.marginBottom;
     }
 
-    finish() {
+    finish(): void {
         figma.viewport.scrollAndZoomIntoView(this.allPages);
         // figma.closePlugin();
     }
 }
 
 // Haupt-Handler, der die Nachricht empfängt und die Logik delegiert
-figma.ui.onmessage = async (msg) => {
+figma.ui.onmessage = async (msg: PluginMessage) => {
     if (msg.type !== "create-resume") {
         return;
     }
 
     try {
         // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
-        const {dpi = 96, pageFormat = 'letter', padding = 5, markdown} = msg;
+        const {dpi = 96, pageFormat = 'letter', padding = 5, markdown = ''} = msg;
         const dimensions = getPageDimensions(dpi, pageFormat, padding);
         const lines = markdown.split("\n");
 
         const selection = figma.currentPage.selection;
-        const selectedTextNode = selection.length === 1 && selection[0].type === 'TEXT' ? selection[0] : null;
+        const selectedTextNode = selection.length === 1 && selection[0].type === 'TEXT' ? selection[0] as TextNode : null;
 
         // 2. Logik basierend auf der Auswahl delegieren
         if (selectedTextNode) {
@@ -273,11 +283,11 @@ figma.ui.onmessage = async (msg) => {
 
     } catch (error) {
         console.error("An error occurred:", error);
-        figma.ui.postMessage({type: "error", message: error.message});
+        figma.ui.postMessage({type: "error", message: (error as Error).message});
     }
 };
 
-async function updateTextNodeWithMarkdown(textNode, lines) {
+async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[]): Promise<void> {
     // Fonts laden
     const fontPromises = FONT_FAMILIES.flatMap(font =>
         font.weights.map(async weight => {
@@ -391,7 +401,7 @@ async function updateTextNodeWithMarkdown(textNode, lines) {
     }
 }
 
-async function createResumeFrameFromMarkdown(dimensions, lines) {
+async function createResumeFrameFromMarkdown(dimensions: PageDimensions, lines: string[]): Promise<void> {
     const builder = new ResumeBuilder(dimensions);
     await builder.loadFonts();
 
