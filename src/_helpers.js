@@ -1,30 +1,6 @@
 // Helper functions for parsing different formatting types
 import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
 
-function parseBold(text) {
-    const match = text.match(/^\*\*(.*?)\*\*$/);
-    if (match) {
-        return { text: match[1], bold: true, medium: false, link: null };
-    }
-    return null;
-}
-
-function parseMedium(text) {
-    const match = text.match(/^\*([^*]+)\*$/);
-    if (match) {
-        return { text: match[1], bold: false, medium: true, link: null };
-    }
-    return null;
-}
-
-function parseLink(text) {
-    const match = text.match(/^\[(.*?)\]\((.*?)\)$/);
-    if (match) {
-        return { text: match[1], bold: false, medium: false, link: match[2] };
-    }
-    return null;
-}
-
 export function parseMarkdownLine(line) {
     if (line.trim() === "") return {type: 'empty'};
 
@@ -46,78 +22,85 @@ export function parseMarkdownLine(line) {
     return {type: 'paragraph', content: line};
 }
 
+const INLINE_FORMATTERS = {
+    bold: {
+        regex: /\*\*(.*?)\*\*/,
+        createPart: (match) => ({ text: match[1], bold: true }),
+    },
+    link: {
+        regex: /\[(.*?)\]\((.*?)\)/,
+        createPart: (match) => ({ text: match[1], link: match[2] }),
+    },
+    medium: {
+        regex: /\*([^*]+)\*/,
+        createPart: (match) => ({ text: match[1], medium: true }),
+    },
+};
 
-// Main function that parses formatted text
 export function parseFormattedText(text) {
     const parts = [];
     let currentIndex = 0;
 
-    const regex = /(\*\*[^*]+\*\*|\[.*?\]\(.*?\)|\*[^*]+\*)/g;
-    let match;
+    // 1. Baue den Master-Regex dynamisch zusammen
+    const formatterNames = Object.keys(INLINE_FORMATTERS);
+    const masterRegex = new RegExp(
+        Object.values(INLINE_FORMATTERS)
+            .map((config) => '(' + config.regex.source + ')')
+            .join('|'),
+        'g'
+    );
 
-    while ((match = regex.exec(text)) !== null) {
+    let match;
+    while ((match = masterRegex.exec(text)) !== null) {
         // Text vor dem Match hinzufügen
         if (match.index > currentIndex) {
-            parts.push({
-                text: text.slice(currentIndex, match.index),
-                bold: false,
-                medium: false,
-                link: null
-            });
+            parts.push({ text: text.slice(currentIndex, match.index) });
         }
 
-        // Verschiedene Formatierungen parsen
-        const parsedBold = parseBold(match[0]);
-        const parsedLink = parseLink(match[0]);
-        const parsedMedium = parseMedium(match[0]);
+        // 2. Finde heraus, welcher Formatter den Treffer verursacht hat
+        let formatterName = null;
+        for (let i = 0; i < formatterNames.length; i++) {
+            if (match[i + 1] !== undefined) {
+                formatterName = formatterNames[i];
+                break;
+            }
+        }
 
-        if (parsedBold) {
-            parts.push(parsedBold);
-        } else if (parsedLink) {
-            parts.push(parsedLink);
-        } else if (parsedMedium) {
-            parts.push(parsedMedium);
+        if (formatterName) {
+            const config = INLINE_FORMATTERS[formatterName];
+
+            // 3. Matche den Treffer erneut mit dem spezifischen Regex
+            const subMatch = match[0].match(config.regex);
+
+            // 4. Erstelle das formatierte Teil (mit Fallback bei null)
+            if (subMatch) {
+                parts.push(config.createPart(subMatch));
+            } else {
+                // Fallback: füge den Text unformatiert hinzu
+                parts.push({ text: match[0] });
+            }
         } else {
-            // Fallback: wenn nichts matched, als normalen Text behandeln
-            parts.push({
-                text: match[0],
-                bold: false,
-                medium: false,
-                link: null
-            });
+            // Fallback: füge den Text unformatiert hinzu
+            parts.push({ text: match[0] });
         }
 
-        currentIndex = regex.lastIndex;
+        currentIndex = masterRegex.lastIndex;
     }
 
     // Restlichen Text am Ende hinzufügen
     if (currentIndex < text.length) {
-        parts.push({
-            text: text.slice(currentIndex),
+        parts.push({ text: text.slice(currentIndex) });
+    }
+
+    // Füge allen Teilen Standardwerte hinzu
+    return parts.map(function(part) {
+        return Object.assign({
             bold: false,
             medium: false,
             link: null
-        });
-    }
-
-    return parts;
+        }, part);
+    });
 }
-// Export für Verwendung in anderen Modulen
-
-// Beispiel-Usage:
-// const text = "Das ist **fett**, das ist *medium* und das ist ein [Link](https://example.com).";
-// const parts = parseFormattedText(text);
-// console.log(parts);
-// Output:
-// [
-//   { text: "Das ist ", bold: false, medium: false, link: null },
-//   { text: "fett", bold: true, medium: false, link: null },
-//   { text: ", das ist ", bold: false, medium: false, link: null },
-//   { text: "medium", bold: false, medium: true, link: null },
-//   { text: " und das ist ein ", bold: false, medium: false, link: null },
-//   { text: "Link", bold: false, medium: false, link: "https://example.com" },
-//   { text: ".", bold: false, medium: false, link: null }
-// ]
 
 
 const MM_TO_INCH = 1 / 25.4;

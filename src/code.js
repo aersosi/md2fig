@@ -159,208 +159,152 @@ class ResumeBuilder {
     }
 }
 
+// Haupt-Handler, der die Nachricht empfängt und die Logik delegiert
 figma.ui.onmessage = async (msg) => {
-    if (msg.type === "create-resume") {
-        try {
-            // Check if a text node is selected
-            const selection = figma.currentPage.selection;
-            if (selection.length === 1 && selection[0].type === 'TEXT') {
-                const textNode = selection[0];
+    if (msg.type !== "create-resume") {
+        return;
+    }
 
-                const dpi = msg.dpi || 96;
-                const pageFormat = msg.pageFormat || 'letter';
-                const padding = msg.padding || 5;
-                const dimensions = getPageDimensions(dpi, pageFormat, padding);
+    try {
+        // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
+        const { dpi = 96, pageFormat = 'letter', padding = 5, markdown } = msg;
+        const dimensions = getPageDimensions(dpi, pageFormat, padding);
+        const lines = markdown.split("\n");
 
-                const builder = new ResumeBuilder(dimensions);
-                await builder.loadFonts();
+        const selection = figma.currentPage.selection;
+        const selectedTextNode = selection.length === 1 && selection[0].type === 'TEXT' ? selection[0] : null;
 
-                // Build formatted content with style information
-                const lines = msg.markdown.split('\n');
-                let formattedParts = [];
-
-                for (const line of lines) {
-                    const parsed = parseMarkdownLine(line);
-                    let content = '';
-                    let fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
-                    let isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
-
-                    if (parsed.type === 'list') {
-                        content = parsed.content;
-                        fontSize = parsed.config.fontSize;
-                        isBold = parsed.config.isBold;
-                    } else if (parsed.type === 'paragraph') {
-                        content = parsed.content;
-                        fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
-                        isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
-                    } else if (parsed.config) {
-                        content = parsed.content;
-                        fontSize = parsed.config.fontSize;
-                        isBold = parsed.config.isBold;
-                    } else if (parsed.type === 'empty') {
-                        content = '';
-                        fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
-                        isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
-                    } else {
-                        content = line;
-                        fontSize = MARKDOWN_ELEMENTS.paragraph.fontSize;
-                        isBold = MARKDOWN_ELEMENTS.paragraph.isBold;
-                    }
-
-                    formattedParts.push({ content, fontSize, isBold });
-                }
-
-                // First, process all content to remove markdown and get the actual text
-                let processedParts = [];
-                for (const part of formattedParts) {
-                    if (part.content.length > 0) {
-                        const inlineParts = parseFormattedText(part.content);
-                        for (const inlinePart of inlineParts) {
-                            processedParts.push({
-                                text: inlinePart.text,
-                                fontSize: part.fontSize,
-                                isBold: part.isBold || inlinePart.bold,
-                                isMedium: inlinePart.medium,
-                                link: inlinePart.link
-                            });
-                        }
-                    }
-                    // Add newline part if this isn't the last part
-                    if (formattedParts.indexOf(part) < formattedParts.length - 1) {
-                        processedParts.push({
-                            text: '\n',
-                            fontSize: part.fontSize,
-                            isBold: part.isBold,
-                            isMedium: false,
-                            link: null
-                        });
-                    }
-                }
-
-                // Set the actual text (without markdown syntax)
-                textNode.characters = processedParts.map(part => part.text).join('');
-
-                // Apply formatting
-                let currentIndex = 0;
-                for (const part of processedParts) {
-                    if (part.text.length === 0) continue;
-
-                    // Set font size
-                    textNode.setRangeFontSize(currentIndex, currentIndex + part.text.length, part.fontSize);
-
-                    // Set font style
-                    let fontStyle = "Regular";
-                    if (part.isBold) {
-                        fontStyle = "Bold";
-                    } else if (part.isMedium) {
-                        fontStyle = "Semi Bold";
-                    }
-
-                    textNode.setRangeFontName(currentIndex, currentIndex + part.text.length, {
-                        family: FONT_FAMILY,
-                        style: fontStyle,
-                    });
-
-                    // Apply hyperlinks
-                    if (part.link) {
-                        textNode.setRangeHyperlink(currentIndex, currentIndex + part.text.length, {
-                            type: "URL",
-                            value: part.link
-                        });
-                        textNode.setRangeFills(currentIndex, currentIndex + part.text.length, [{
-                            type: "SOLID",
-                            color: {r: 0, g: 0, b: 1}
-                        }]);
-                    }
-
-                    currentIndex += part.text.length;
-                }
-
-                figma.closePlugin();
-                return;
-            }
-
-            const dpi = msg.dpi || 96;
-            const pageFormat = msg.pageFormat || 'letter';
-            const padding = msg.padding || 5;
-            const dimensions = getPageDimensions(dpi, pageFormat, padding);
-            const lines = msg.markdown.split("\n");
-
-            const builder = new ResumeBuilder(dimensions);
-            await builder.loadFonts();
-
-            let paragraphLines = [];
-            let listItems = [];
-
-            const processPendingParagraph = async () => {
-                if (paragraphLines.length > 0) {
-                    await builder.processParagraph(paragraphLines);
-                    paragraphLines = [];
-                }
-            };
-
-            const processPendingList = async () => {
-                if (listItems.length > 0) {
-                    await builder.processList(listItems);
-                    listItems = [];
-                }
-            };
-
-            for (const line of lines) {
-                const parsed = parseMarkdownLine(line);
-
-                switch (parsed.type) {
-                    case 'empty':
-                        await processPendingParagraph();
-                        await processPendingList();
-                        builder.yOffset += 8;
-                        break;
-
-                    case 'paragraph':
-                        await processPendingList();
-                        paragraphLines.push(parsed.content);
-                        break;
-
-                    case 'list':
-                        await processPendingParagraph();
-                        listItems.push(parsed.content);
-                        break;
-
-                    case 'link':
-                        await processPendingParagraph();
-                        await processPendingList();
-                        const linkConfig = MARKDOWN_ELEMENTS.paragraph; // Use paragraph styling for links
-                        await builder.addTextElement(
-                            parsed.content,
-                            linkConfig.fontSize,
-                            linkConfig.isBold,
-                            linkConfig.marginTop,
-                            linkConfig.marginBottom
-                        );
-                        break;
-
-                    default: // headers
-                        await processPendingParagraph();
-                        await processPendingList();
-                        await builder.addTextElement(
-                            parsed.content,
-                            parsed.config.fontSize,
-                            parsed.config.isBold,
-                            parsed.config.marginTop,
-                            parsed.config.marginBottom
-                        );
-                }
-            }
-
-            // Process any remaining paragraph lines and list items
-            await processPendingParagraph();
-            await processPendingList();
-
-            builder.finish();
-
-        } catch (error) {
-            console.error("An error occurred:", error);
-            figma.ui.postMessage({type: "error", message: error.message});
+        // 2. Logik basierend auf der Auswahl delegieren
+        if (selectedTextNode) {
+            await updateTextNodeWithMarkdown(selectedTextNode, lines);
+        } else {
+            await createResumeFrameFromMarkdown(dimensions, lines);
         }
+
+        figma.closePlugin();
+
+    } catch (error) {
+        console.error("An error occurred:", error);
+        figma.ui.postMessage({ type: "error", message: error.message });
     }
 };
+
+/**
+ * Aktualisiert einen vorhandenen Textknoten mit formatiertem Markdown-Inhalt.
+ * @param {TextNode} textNode - Der zu aktualisierende Figma-Textknoten.
+ * @param {string[]} lines - Die Markdown-Zeilen als Array.
+ */
+async function updateTextNodeWithMarkdown(textNode, lines) {
+    const defaultConfig = MARKDOWN_ELEMENTS.paragraph;
+    let processedParts = [];
+
+    // 1. Markdown-Zeilen parsen und in formatierte Teile umwandeln
+    for (const line of lines) {
+        const parsed = parseMarkdownLine(line);
+        const { fontSize, isBold } = parsed.config || defaultConfig;
+        const content = parsed.type === 'empty' ? '' : (parsed.content || line);
+
+        // Inline-Formatierungen (fett, Links) weiterverarbeiten
+        if (content) {
+            const inlineParts = parseFormattedText(content);
+            for (const inlinePart of inlineParts) {
+                processedParts.push({
+                    text: inlinePart.text,
+                    fontSize: fontSize,
+                    isBold: isBold || inlinePart.bold,
+                    isMedium: inlinePart.medium,
+                    link: inlinePart.link
+                });
+            }
+        }
+        // Zeilenumbruch hinzufügen
+        processedParts.push({ text: '\n', fontSize, isBold, isMedium: false, link: null });
+    }
+    processedParts.pop(); // Letzten, überflüssigen Zeilenumbruch entfernen
+
+    // 2. Text im Knoten setzen und formatieren
+    textNode.characters = processedParts.map(part => part.text).join('');
+
+    let currentIndex = 0;
+    for (const part of processedParts) {
+        if (part.text.length === 0) continue;
+
+        const rangeEnd = currentIndex + part.text.length;
+        let fontStyle = "Regular";
+        if (part.isBold) fontStyle = "Bold";
+        else if (part.isMedium) fontStyle = "Semi Bold";
+
+        textNode.setRangeFontSize(currentIndex, rangeEnd, part.fontSize);
+        textNode.setRangeFontName(currentIndex, rangeEnd, { family: FONT_FAMILY, style: fontStyle });
+
+        if (part.link) {
+            textNode.setRangeHyperlink(currentIndex, rangeEnd, { type: "URL", value: part.link });
+            textNode.setRangeFills(currentIndex, rangeEnd, [{ type: "SOLID", color: { r: 0, g: 0, b: 1 } }]);
+        }
+
+        currentIndex = rangeEnd;
+    }
+}
+
+/**
+ * Erstellt einen neuen Figma-Frame und füllt ihn basierend auf dem Markdown-Inhalt.
+ * @param {object} dimensions - Die Abmessungen für den neuen Frame.
+ * @param {string[]} lines - Die Markdown-Zeilen als Array.
+ */
+async function createResumeFrameFromMarkdown(dimensions, lines) {
+    const builder = new ResumeBuilder(dimensions);
+    await builder.loadFonts();
+
+    let paragraphLines = [];
+    let listItems = [];
+
+    const processPendingElements = async () => {
+        if (paragraphLines.length > 0) {
+            await builder.processParagraph(paragraphLines);
+            paragraphLines = [];
+        }
+        if (listItems.length > 0) {
+            await builder.processList(listItems);
+            listItems = [];
+        }
+    };
+
+    for (const line of lines) {
+        const parsed = parseMarkdownLine(line);
+
+        switch (parsed.type) {
+            case 'empty':
+                await processPendingElements();
+                builder.yOffset += 8;
+                break;
+            case 'paragraph':
+                await processPendingElements(); // Verarbeite Listen, bevor ein neuer Paragraph beginnt
+                paragraphLines.push(parsed.content);
+                break;
+            case 'list':
+                await processPendingElements(); // Verarbeite Paragraphen, bevor eine neue Liste beginnt
+                listItems.push(parsed.content);
+                break;
+            case 'link': // Links werden wie Header behandelt, nur mit Paragraphen-Stil
+            case 'h1':
+            case 'h2':
+            case 'h3':
+            case 'h4':
+            case 'h5':
+            case 'h6':
+                await processPendingElements();
+                const config = parsed.config || MARKDOWN_ELEMENTS.paragraph;
+                await builder.addTextElement(
+                    parsed.content,
+                    config.fontSize,
+                    config.isBold,
+                    config.marginTop,
+                    config.marginBottom
+                );
+                break;
+        }
+    }
+
+    await processPendingElements(); // Verarbeite restliche Elemente am Ende
+    builder.finish();
+}
