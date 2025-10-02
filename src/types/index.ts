@@ -10,6 +10,7 @@ export interface MarkdownElementConfig {
     marginTop: number;
     marginBottom: number;
     prefix?: string;
+    subitemIndent?: number;
 }
 
 export interface MarkdownBlock {
@@ -26,6 +27,11 @@ export interface InlinePart {
     bold: boolean;
     italic: boolean;
     link: string | null;
+    strikethrough: boolean;
+    underline: boolean;
+    highlight: boolean;
+    subscript: boolean;
+    superscript: boolean;
 }
 
 export interface PageDimensions {
@@ -42,4 +48,8 @@ export interface PluginMessage {
     pageFormat?: string;
     padding?: number;
     markdown?: string;
+    highlightColor?: string;
+    linkColor?: string;
+    width?: number;
+    height?: number;
 }

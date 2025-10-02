@@ -1,9 +1,11 @@
-import type { MarkdownElementConfig, PageFormat } from "./types";
+import type { MarkdownElementConfig, PageFormat } from "../types";
 
 export const PLUGIN_UI_DIMENSIONS = {
-    width: 480,
-    height: 480
-} as const;
+    width: 560,
+    height: 560,
+    minWidth: 240,
+    minHeight: 320
+};
 
 export const PAGE_FORMATS: Record<PageFormat, { width: number; height: number; unit: 'mm' | 'inch' }> = {
     a4: {width: 210, height: 297, unit: 'mm'},
@@ -24,6 +26,12 @@ export const MARKDOWN_ELEMENTS: Record<string, MarkdownElementConfig> = {
     'h4': {fontSize: 14, style: 'bold', marginTop: 7, marginBottom: 4},
     'h5': {fontSize: 12, style: 'bold', marginTop: 6, marginBottom: 4},
     'h6': {fontSize: 10, style: 'bold', marginTop: 5, marginBottom: 4},
-    'list': {fontSize: 10, style: 'regular', marginTop: 4, marginBottom: 4, prefix: '• '},
+    'list': {fontSize: 10, style: 'regular', marginTop: 4, marginBottom: 4, prefix: '• ', subitemIndent: 5},
     'paragraph': {fontSize: 10, style: 'regular', marginTop: 2, marginBottom: 4}
+};
+
+export const COLOR_HEX = {
+    PAGE_BACKGROUND: '#FFFFFF',
+    LINK: '#1745CE',
+    HIGHLIGHT: '#1745ce'
 };

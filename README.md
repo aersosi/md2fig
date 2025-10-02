@@ -1,8 +1,9 @@
-# Markdown to Figma - Classic Resume Figma Plugin
+# Markdown to Figma
    
 ![Plugin Icon](assets/icon.png)
 
-A Figma plugin that transforms Markdown-formatted text into a professionally designed classic resume. Perfect for designers and professionals looking to create sleek resumes effortlessly.
+A Figma plugin that transforms Markdown-formatted text into a professionally designed classic resume. 
+Perfect for designers and professionals looking to create sleek resumes effortlessly.
 
 ## 🚀 Features
 
@@ -88,6 +89,24 @@ Follow these steps to get your Classic Resume plugin up and running:
 4. **Generate and Customize:**
    - Use the plugin to generate your resume.
    - Edit and customize the design directly within Figma as needed.
+
+## 🔒 Security Notes
+
+**Markdown Processing:**
+
+This plugin uses `markdown-it` v14.1.0 for parsing Markdown content. A disputed CVE (CVE-2025-7969) has been reported for this version regarding potential XSS vulnerabilities. However, **this vulnerability does not apply to this plugin** because:
+
+- The plugin runs in Figma's sandboxed environment, not in a web browser
+- Markdown is converted to Figma text nodes, not rendered as HTML
+- No user-generated HTML is executed in a browser context
+- Users process only their own trusted content
+
+**Best Practices:**
+- Only process Markdown content from trusted sources
+- Review content before generating your resume
+- This plugin is designed for personal use with your own resume content
+
+For more information about the disputed CVE, see the [NVD database](https://nvd.nist.gov/vuln/detail/CVE-2025-7969).
 
 ## 🐞 Troubleshooting
 

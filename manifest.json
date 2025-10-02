@@ -11,8 +11,8 @@
   },
   "menu": [
     {
-      "name": "Create Resume",
-      "command": "create-resume"
+      "name": "Create Page",
+      "command": "create-page"
     }
   ]
 }

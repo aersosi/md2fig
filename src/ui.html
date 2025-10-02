@@ -43,6 +43,17 @@
                value="5" min="0" max="20" step="0.1"
                placeholder="5">
     </div>
+
+<div class="flex gap-base">
+    <div class="grid">
+        <label class="font-sm font-bold" for="link-color">Link Color</label>
+        <input type="color" class="p-sm radius-base bg-white" id="link-color" value="#1745ce">
+    </div>
+    <div class="grid">
+        <label class="font-sm font-bold" for="highlight-color">Highlight Color</label>
+        <input type="color" class="p-sm radius-base bg-white" id="highlight-color" value="#1745ce">
+    </div>
+</div>
     <div class="grid font-mono">
         <label class="font-sm font-bold" for="markdown-input">Content</label>
         <textarea class="radius-base" id="markdown-input" placeholder="Paste your Markdown here"></textarea>
@@ -54,6 +65,8 @@
     <button class="btn font-base font-bold radius-base w-full py-sm" id="test">Test</button>
     <button class="btn blue font-base font-bold radius-base w-full py-sm" id="generate">Generate Output</button>
 </div>
+
+<div id="resizer"></div>
 
 <script>
     const testMarkdown = ``;
@@ -67,12 +80,24 @@
         const dpi = parseInt(document.getElementById('dpi-select').value);
         const pageFormat = document.getElementById('format-select').value;
         const padding = parseFloat(document.getElementById('padding-input').value) || 5;
+        const linkColor = document.getElementById('link-color').value;
+        const highlightColor = document.getElementById('highlight-color').value;
         if (!markdown) {
             document.getElementById('error-message').textContent = 'Error: Markdown content cannot be empty.';
             return;
         }
         document.getElementById('error-message').textContent = '';
-        parent.postMessage({pluginMessage: {type: 'create-resume', markdown, dpi, pageFormat, padding}}, '*');
+        parent.postMessage({
+            pluginMessage: {
+                type: 'create-page',
+                markdown,
+                dpi,
+                pageFormat,
+                padding,
+                linkColor,
+                highlightColor
+            }
+        }, '*');
     };
 
     onmessage = (event) => {
@@ -80,6 +105,28 @@
             document.getElementById('error-message').textContent = 'Error: ' + event.data.pluginMessage.message;
         }
     };
+
+    const resizer = document.getElementById('resizer');
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', e => {
+        isResizing = true;
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (!isResizing) return;
+        parent.postMessage({
+            pluginMessage: {
+                type: 'resize',
+                width: e.clientX,
+                height: e.clientY
+            }
+        }, '*');
+    });
+
+    window.addEventListener('mouseup', () => {
+        isResizing = false;
+    });
 </script>
 </body>
 </html>

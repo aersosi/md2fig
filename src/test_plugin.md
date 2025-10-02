@@ -1,7 +1,3 @@
-Here’s the full English translation of your Markdown syntax test file:
-
----
-
 # Markdown Syntax Test File
 
 This file systematically demonstrates all common Markdown syntax elements by category.
@@ -38,11 +34,19 @@ Alternative syntax for H1 and H2:
 
 ~~Strikethrough Text~~
 
-<u>Underlined Text</u> (HTML)
+<u>Underlined HTML</u>
+
+<ins>Underlined Github</ins>
 
 ==Highlighted Text== (extended syntax)
 
-Superscript<sup>text</sup> and Sub<sub>script</sub>
+Superscript ^sup^
+
+HTML <sup>sup</sup>
+
+Subscript ~sub~
+
+HTML Subscript <sub>sub</sub>
 
 `Inline Code`
 
