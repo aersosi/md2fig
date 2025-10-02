@@ -1,8 +1,10 @@
-import type { MarkdownElementConfig, PageFormat } from "./types";
+import type { MarkdownElementConfig, PageFormat } from "../types";
 
 export const PLUGIN_UI_DIMENSIONS = {
-    width: 480,
-    height: 480
+    width: 560,
+    height: 560,
+    minWidth: 240,
+    minHeight: 320
 };
 
 export const PAGE_FORMATS: Record<PageFormat, { width: number; height: number; unit: 'mm' | 'inch' }> = {
@@ -30,6 +32,6 @@ export const MARKDOWN_ELEMENTS: Record<string, MarkdownElementConfig> = {
 
 export const COLOR_HEX = {
     PAGE_BACKGROUND: '#FFFFFF',
-    LINK: '#0000FF',
-    HIGHLIGHT: '#00d96c'
+    LINK: '#1745CE',
+    HIGHLIGHT: '#1745ce'
 };

@@ -1,15 +1,11 @@
-import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS, COLOR_HEX } from "./_constants.js";
-import { getPageDimensions, parseMarkdownToBlocks, parseInlineTokens } from "./_helpers.js";
-import type { PageDimensions, PluginMessage, PageFormat } from "./types";
 import type Token from 'markdown-it/lib/token.mjs';
+import { COLOR_HEX, FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./lib/constants";
+import { getPageDimensions, parseInlineTokens, parseMarkdownToBlocks, loadFontsShared, isAbsoluteUrl } from "./lib/helpers";
+import type { PageDimensions, PageFormat, PluginMessage } from "./types";
 
 // Alias for more concise code
 const rgb = figma.util.rgb;
 
-// Helper function to check if URL is absolute
-function isAbsoluteUrl(url: string): boolean {
-    return /^https?:\/\//i.test(url);
-}
 
 figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
@@ -36,27 +32,9 @@ class PageBuilder {
         this.linkColor = linkColor;
     }
 
-
     async loadFonts(): Promise<void> {
         if (this.fontsLoaded) return;
-
-        const fontPromises: Promise<void>[] = [];
-        for (const font of FONT_FAMILIES) {
-            for (const weight of font.weights) {
-                fontPromises.push(
-                    (async () => {
-                        try {
-                            await figma.loadFontAsync({family: font.name, style: weight});
-                        } catch (error) {
-                            console.warn(error);
-                        }
-                    })()
-                );
-            }
-        }
-
-        await Promise.all(fontPromises);
-
+        await loadFontsShared();
         this.fontsLoaded = true;
     }
 
@@ -70,7 +48,7 @@ class PageBuilder {
         return page;
     }
 
-    checkAndCreateNewPage(textHeight: number): boolean {
+    createFollowingPage(textHeight: number): boolean {
         if (this.yOffset + textHeight + this.dimensions.PADDING > this.dimensions.PAGE_HEIGHT) {
             this.pageNumber += 1;
             this.xPosition += this.dimensions.PAGE_WIDTH + this.dimensions.PAGE_GAP;
@@ -82,14 +60,29 @@ class PageBuilder {
         return false;
     }
 
-    async createFormattedTextNode(content: string, fontSize: number, isBold: boolean, isItalic: boolean, inlineTokens?: Token[]): Promise<TextNode> {
+    createTextNode(fontSize: number): TextNode {
         const textNode = figma.createText();
         textNode.fontSize = fontSize;
         textNode.x = this.dimensions.PADDING;
         textNode.y = this.yOffset;
         textNode.textAutoResize = "WIDTH_AND_HEIGHT";
+        return textNode;
+    }
 
-        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{ text: content, bold: false, italic: false, link: null, strikethrough: false, underline: false, highlight: false, subscript: false, superscript: false }];
+    async createFormattedTextNode(content: string, fontSize: number, isBold: boolean, isItalic: boolean, inlineTokens?: Token[]): Promise<TextNode> {
+        const textNode = this.createTextNode(fontSize);
+
+        const parts = inlineTokens ? parseInlineTokens(inlineTokens) : [{
+            text: content,
+            bold: false,
+            italic: false,
+            link: null,
+            strikethrough: false,
+            underline: false,
+            highlight: false,
+            subscript: false,
+            superscript: false
+        }];
         let currentIndex = 0;
         let linkParts = [];
         let highlightParts = [];
@@ -192,7 +185,7 @@ class PageBuilder {
         const textNode = await this.createFormattedTextNode(content, config.fontSize, isBold, isItalic, inlineTokens);
 
         // Check if we need a new page and update position if so
-        const newPage = this.checkAndCreateNewPage(textNode.height);
+        const newPage = this.createFollowingPage(textNode.height);
         if (newPage) {
             textNode.x = this.dimensions.PADDING;
             textNode.y = this.yOffset;
@@ -202,14 +195,14 @@ class PageBuilder {
         this.yOffset += textNode.height + config.marginBottom;
     }
 
-    async addListElement(items: Array<{ content: string; inlineTokens: Token[], level: number }>, config: any): Promise<void> {
+    async addListElement(items: Array<{
+        content: string;
+        inlineTokens: Token[],
+        level: number
+    }>, config: any): Promise<void> {
         this.yOffset += config.marginTop;
 
-        const textNode = figma.createText();
-        textNode.fontSize = config.fontSize;
-        textNode.x = this.dimensions.PADDING;
-        textNode.y = this.yOffset;
-        textNode.textAutoResize = "WIDTH_AND_HEIGHT";
+        const textNode = this.createTextNode(config.fontSize);
 
         const isBold = config.style === 'bold' || config.style === 'bold-italic';
         const isItalic = config.style === 'italic' || config.style === 'bold-italic';
@@ -341,7 +334,7 @@ class PageBuilder {
         }
 
         // Check if we need a new page
-        const newPage = this.checkAndCreateNewPage(textNode.height);
+        const newPage = this.createFollowingPage(textNode.height);
         if (newPage) {
             textNode.x = this.dimensions.PADDING;
             textNode.y = this.yOffset;
@@ -357,53 +350,8 @@ class PageBuilder {
     }
 }
 
-// Haupt-Handler, der die Nachricht empfängt und die Logik delegiert
-figma.ui.onmessage = async (msg: PluginMessage) => {
-    if (msg.type !== "create-page") {
-        return;
-    }
-
-    try {
-        // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
-        const {dpi = 96, pageFormat = 'letter', padding = 5, markdown = '', highlightColor = COLOR_HEX.HIGHLIGHT, linkColor = COLOR_HEX.LINK} = msg;
-        const dimensions = getPageDimensions(dpi, pageFormat as PageFormat, padding);
-        const lines = markdown.split("\n");
-
-        const selection = figma.currentPage.selection;
-        const selectedTextNode = selection.length === 1 && selection[0].type === 'TEXT' ? selection[0] as TextNode : null;
-
-        // 2. Logik basierend auf der Auswahl delegieren
-        if (selectedTextNode) {
-            await updateTextNodeWithMarkdown(selectedTextNode, lines, highlightColor, linkColor);
-        } else {
-            await createPageFrameFromMarkdown(dimensions, lines, highlightColor, linkColor);
-        }
-
-        // figma.closePlugin();
-
-    } catch (error) {
-        console.error("An error occurred:", error);
-        figma.ui.postMessage({type: "error", message: (error as Error).message});
-    }
-};
-
-async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
-    // Fonts laden
-    const fontPromises: Promise<void>[] = [];
-    for (const font of FONT_FAMILIES) {
-        for (const weight of font.weights) {
-            fontPromises.push(
-                (async () => {
-                    try {
-                        await figma.loadFontAsync({family: font.name, style: weight});
-                    } catch (error) {
-                        console.warn(error);
-                    }
-                })()
-            );
-        }
-    }
-    await Promise.all(fontPromises);
+async function updateSelectedTextNode(textNode: TextNode, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
+    await loadFontsShared();
 
     const defaultConfig = MARKDOWN_ELEMENTS.paragraph;
     let processedParts = [];
@@ -457,7 +405,17 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[], h
                         indentLevel: undefined
                     });
                 }
-                processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
+                processedParts.push({
+                    text: '\n',
+                    fontSize,
+                    isBold,
+                    isItalic,
+                    link: null,
+                    strikethrough: false,
+                    underline: false,
+                    highlight: false,
+                    indentLevel: undefined
+                });
             }
         } else if (block.type !== 'empty') {
             const inlineParts = parseInlineTokens(block.inlineTokens);
@@ -476,16 +434,46 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[], h
                     indentLevel: undefined
                 });
             }
-            processedParts.push({text: '\n', fontSize, isBold, isItalic, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
+            processedParts.push({
+                text: '\n',
+                fontSize,
+                isBold,
+                isItalic,
+                link: null,
+                strikethrough: false,
+                underline: false,
+                highlight: false,
+                indentLevel: undefined
+            });
         } else {
             // Empty line - add extra newline to preserve spacing
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
+            processedParts.push({
+                text: '\n',
+                fontSize,
+                isBold: false,
+                isItalic: false,
+                link: null,
+                strikethrough: false,
+                underline: false,
+                highlight: false,
+                indentLevel: undefined
+            });
         }
 
         // Add extra newline between blocks (to preserve paragraph spacing)
         const nextBlock = blocks[blockIndex + 1];
         if (nextBlock && block.type !== 'empty' && nextBlock.type !== 'empty') {
-            processedParts.push({text: '\n', fontSize, isBold: false, isItalic: false, link: null, strikethrough: false, underline: false, highlight: false, indentLevel: undefined});
+            processedParts.push({
+                text: '\n',
+                fontSize,
+                isBold: false,
+                isItalic: false,
+                link: null,
+                strikethrough: false,
+                underline: false,
+                highlight: false,
+                indentLevel: undefined
+            });
         }
     }
 
@@ -542,7 +530,7 @@ async function updateTextNodeWithMarkdown(textNode: TextNode, lines: string[], h
     }
 }
 
-async function createPageFrameFromMarkdown(dimensions: PageDimensions, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
+async function createNewPage(dimensions: PageDimensions, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
     const builder = new PageBuilder(dimensions, highlightColor, linkColor);
     await builder.loadFonts();
 
@@ -583,3 +571,49 @@ async function createPageFrameFromMarkdown(dimensions: PageDimensions, lines: st
 
     builder.finish();
 }
+
+// Haupt-Handler, der die Nachricht empfängt und die Logik delegiert
+figma.ui.onmessage = async (msg: PluginMessage) => {
+    if (msg.type === "create-page") {
+        try {
+            // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
+            const {
+                dpi = 96,
+                pageFormat = 'letter',
+                padding = 5,
+                markdown = '',
+                highlightColor = COLOR_HEX.HIGHLIGHT,
+                linkColor = COLOR_HEX.LINK
+            } = msg;
+
+            const dimensions = getPageDimensions(dpi, pageFormat as PageFormat, padding);
+            const lines = markdown.split("\n");
+
+            const selection = figma.currentPage.selection;
+            const selectedTextNode = selection.length === 1 && selection[0].type === 'TEXT' ? selection[0] as TextNode : null;
+
+            // 2. Logik basierend auf der Auswahl delegieren
+            if (selectedTextNode) {
+                await updateSelectedTextNode(selectedTextNode, lines, highlightColor, linkColor);
+            } else {
+                await createNewPage(dimensions, lines, highlightColor, linkColor);
+            }
+
+            // figma.closePlugin();
+
+        } catch (error) {
+            console.error("An error occurred:", error);
+            figma.ui.postMessage({type: "error", message: (error as Error).message});
+        }
+
+    } else if (msg.type === 'resize') {
+        const {width, height} = msg;
+        const {minWidth, minHeight} = PLUGIN_UI_DIMENSIONS;
+
+        if (height && width) {
+            const newWidth = Math.max(width, minWidth);
+            const newHeight = Math.max(height, minHeight);
+            figma.ui.resize(newWidth, newHeight);
+        }
+    }
+};

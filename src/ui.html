@@ -47,11 +47,11 @@
 <div class="flex gap-base">
     <div class="grid">
         <label class="font-sm font-bold" for="link-color">Link Color</label>
-        <input type="color" class="p-sm radius-base bg-white" id="link-color" value="#00d96c">
+        <input type="color" class="p-sm radius-base bg-white" id="link-color" value="#1745ce">
     </div>
     <div class="grid">
         <label class="font-sm font-bold" for="highlight-color">Highlight Color</label>
-        <input type="color" class="p-sm radius-base bg-white" id="highlight-color" value="#00d96c">
+        <input type="color" class="p-sm radius-base bg-white" id="highlight-color" value="#1745ce">
     </div>
 </div>
     <div class="grid font-mono">
@@ -65,6 +65,8 @@
     <button class="btn font-base font-bold radius-base w-full py-sm" id="test">Test</button>
     <button class="btn blue font-base font-bold radius-base w-full py-sm" id="generate">Generate Output</button>
 </div>
+
+<div id="resizer"></div>
 
 <script>
     const testMarkdown = ``;
@@ -103,6 +105,28 @@
             document.getElementById('error-message').textContent = 'Error: ' + event.data.pluginMessage.message;
         }
     };
+
+    const resizer = document.getElementById('resizer');
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', e => {
+        isResizing = true;
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (!isResizing) return;
+        parent.postMessage({
+            pluginMessage: {
+                type: 'resize',
+                width: e.clientX,
+                height: e.clientY
+            }
+        }, '*');
+    });
+
+    window.addEventListener('mouseup', () => {
+        isResizing = false;
+    });
 </script>
 </body>
 </html>

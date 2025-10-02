@@ -71,3 +71,14 @@ select {
 .check {
     border: 1px solid red;
 }
+
+#resizer {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 1rem;
+    height: 1rem;
+    cursor: se-resize;
+    color: #a6a6a6;
+    background: red;
+}

@@ -4,9 +4,9 @@ import markdownItMark from 'markdown-it-mark';
 import markdownItSub from 'markdown-it-sub';
 import markdownItSup from 'markdown-it-sup';
 import type Token from 'markdown-it/lib/token.mjs';
-import { MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./_constants.js";
+import { FONT_FAMILIES, MARKDOWN_ELEMENTS, PAGE_FORMATS } from "./constants";
 
-import type { InlinePart, MarkdownBlock, PageDimensions, PageFormat } from "./types";
+import type { InlinePart, MarkdownBlock, PageDimensions, PageFormat } from "../types";
 
 // Initialize markdown-it parser
 const md = markdownit({
@@ -461,4 +461,30 @@ export function getPageDimensions(dpi: number = 96, pageFormat: PageFormat = 'le
         CONTENT_WIDTH,
         PAGE_GAP
     };
+}
+
+
+// Shared font loading function
+export async function loadFontsShared(): Promise<void> {
+    const fontPromises: Promise<void>[] = [];
+    for (const font of FONT_FAMILIES) {
+        for (const weight of font.weights) {
+            fontPromises.push(
+                (async () => {
+                    try {
+                        await figma.loadFontAsync({family: font.name, style: weight});
+                    } catch (error) {
+                        console.warn(error);
+                    }
+                })()
+            );
+        }
+    }
+    await Promise.all(fontPromises);
+}
+
+
+// Helper function to check if URL is absolute
+export function isAbsoluteUrl(url: string): boolean {
+    return /^https?:\/\//i.test(url);
 }

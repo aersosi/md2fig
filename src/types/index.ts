@@ -50,4 +50,6 @@ export interface PluginMessage {
     markdown?: string;
     highlightColor?: string;
     linkColor?: string;
+    width?: number;
+    height?: number;
 }

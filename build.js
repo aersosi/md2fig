@@ -61,7 +61,7 @@ function buildHtml() {
     const htmlPath = path.resolve("src/ui.html");
     const cssPath = path.resolve("src/index.css");
     const testMarkdownPath = path.resolve("src/test_plugin.md");
-    const constantsPath = path.resolve("src/_constants.ts");
+    const constantsPath = path.resolve("src/constants.ts");
 
     let html = fs.readFileSync(htmlPath, "utf-8");
     const rawCSS = fs.readFileSync(cssPath, "utf-8");
@@ -74,7 +74,7 @@ function buildHtml() {
     }
 
     // Read highlight color from constants
-    let highlightColor = '#00d96c'; // fallback default
+    let highlightColor = '#1745ce'; // fallback default
     if (fs.existsSync(constantsPath)) {
         const constantsContent = fs.readFileSync(constantsPath, "utf-8");
         const highlightMatch = constantsContent.match(/HIGHLIGHT:\s*['"]([^'"]+)['"]/);
@@ -84,7 +84,7 @@ function buildHtml() {
     }
 
     // Read link color from constants
-    let linkColor = '#0000FF'; // fallback default
+    let linkColor = '#1745CE'; // fallback default
     if (fs.existsSync(constantsPath)) {
         const constantsContent = fs.readFileSync(constantsPath, "utf-8");
         const linkMatch = constantsContent.match(/LINK:\s*['"]([^'"]+)['"]/);
