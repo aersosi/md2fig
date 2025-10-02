@@ -2,10 +2,17 @@ import type Token from 'markdown-it/lib/token.mjs';
 import { COLOR_HEX, FONT_FAMILIES, MARKDOWN_ELEMENTS, PLUGIN_UI_DIMENSIONS } from "./lib/constants";
 import { getPageDimensions, parseInlineTokens, parseMarkdownToBlocks, loadFontsShared, isAbsoluteUrl } from "./lib/helpers";
 import type { PageDimensions, PageFormat, PluginMessage } from "./types";
+import { logTiming, resetTimer } from "./lib/debugHelpers";
 
 // Alias for more concise code
 const rgb = figma.util.rgb;
 
+// Type definitions for formatting ranges
+type TextRange = { start: number; end: number };
+type FontSizeRange = TextRange & { size: number };
+type FontNameRange = TextRange & { style: string };
+type IndentRange = { start: number; amount: number };
+type LinkRange = TextRange & { url: string };
 
 figma.showUI(__html__, {width: PLUGIN_UI_DIMENSIONS.width, height: PLUGIN_UI_DIMENSIONS.height});
 
@@ -210,7 +217,7 @@ class PageBuilder {
         let currentIndex = 0;
         let linkParts = [];
         let highlightParts = [];
-        let indentRanges = [];
+        let IndentRanges = [];
 
         // Process each list item
         for (let i = 0; i < items.length; i++) {
@@ -291,7 +298,7 @@ class PageBuilder {
             }
 
             // Store indent info for this line
-            indentRanges.push({
+            IndentRanges.push({
                 lineStart: lineStart,
                 level: item.level
             });
@@ -299,7 +306,7 @@ class PageBuilder {
 
         // Apply paragraph indents for nested list items
         const subitemIndent = config.subitemIndent || 16;
-        for (const indentRange of indentRanges) {
+        for (const indentRange of IndentRanges) {
             if (indentRange.level > 0) {
                 const indentAmount = indentRange.level * subitemIndent;
                 textNode.setRangeParagraphIndent(indentRange.lineStart, indentRange.lineStart + 1, indentAmount);
@@ -351,14 +358,19 @@ class PageBuilder {
 }
 
 async function updateSelectedTextNode(textNode: TextNode, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
+    logTiming('Start updateSelectedTextNode', `${lines.length} lines`);
+
     await loadFontsShared();
+    logTiming('Fonts loaded');
 
     const defaultConfig = MARKDOWN_ELEMENTS.paragraph;
     let processedParts = [];
 
     // Parse with markdown-it
     const markdown = lines.join('\n');
+    logTiming('Start parsing markdown');
     const blocks = parseMarkdownToBlocks(markdown);
+    logTiming('End parsing markdown', `${blocks.length} blocks`);
 
     for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
         const block = blocks[blockIndex];
@@ -482,10 +494,27 @@ async function updateSelectedTextNode(textNode: TextNode, lines: string[], highl
         processedParts.pop();
     }
 
+    logTiming('Start building processed parts', `${processedParts.length} parts`);
+
     // 2. Text im Knoten setzen und formatieren
     textNode.characters = processedParts.map(part => part.text).join('');
+    logTiming('Text characters set');
+
+    // Merge adjacent ranges with same formatting to reduce API calls
+    const FontSizeRanges: FontSizeRange[] = [];
+    const FontNameRanges: FontNameRange[] = [];
+    const IndentRanges: IndentRange[] = [];
+    const StrikethroughRanges: TextRange[] = [];
+    const UnderlineRanges: TextRange[] = [];
+    const HighlightRanges: TextRange[] = [];
+    const LinkRanges: LinkRange[] = [];
 
     let currentIndex = 0;
+    let lastFontSize = null;
+    let lastFontStyle = null;
+    let lastFontSizeStart = 0;
+    let lastFontStyleStart = 0;
+
     for (const part of processedParts) {
         if (!part.text || part.text.length === 0) continue;
 
@@ -499,44 +528,138 @@ async function updateSelectedTextNode(textNode: TextNode, lines: string[], highl
             fontStyle = "Italic";
         }
 
-        textNode.setRangeFontSize(currentIndex, rangeEnd, part.fontSize);
-        textNode.setRangeFontName(currentIndex, rangeEnd, {family: FONT_FAMILIES[0].name, style: fontStyle});
+        // Merge font sizes
+        if (lastFontSize !== null && lastFontSize === part.fontSize) {
+            // Extend current range
+        } else {
+            if (lastFontSize !== null) {
+                FontSizeRanges.push({start: lastFontSizeStart, end: currentIndex, size: lastFontSize});
+            }
+            lastFontSize = part.fontSize;
+            lastFontSizeStart = currentIndex;
+        }
 
-        // Apply paragraph indent if this part has an indent level
+        // Merge font styles
+        if (lastFontStyle !== null && lastFontStyle === fontStyle) {
+            // Extend current range
+        } else {
+            if (lastFontStyle !== null) {
+                FontNameRanges.push({start: lastFontStyleStart, end: currentIndex, style: lastFontStyle});
+            }
+            lastFontStyle = fontStyle;
+            lastFontStyleStart = currentIndex;
+        }
+
         if (part.indentLevel !== undefined && part.indentLevel > 0) {
             const subitemIndent = MARKDOWN_ELEMENTS.list.subitemIndent || 16;
             const indentAmount = part.indentLevel * subitemIndent;
-            textNode.setRangeParagraphIndent(currentIndex, currentIndex + 1, indentAmount);
+            IndentRanges.push({start: currentIndex, amount: indentAmount});
         }
 
-        // Apply text decoration
         if (part.strikethrough) {
-            textNode.setRangeTextDecoration(currentIndex, rangeEnd, "STRIKETHROUGH");
+            if (StrikethroughRanges.length > 0 && StrikethroughRanges[StrikethroughRanges.length - 1].end === currentIndex) {
+                StrikethroughRanges[StrikethroughRanges.length - 1].end = rangeEnd;
+            } else {
+                StrikethroughRanges.push({start: currentIndex, end: rangeEnd});
+            }
         } else if (part.underline) {
-            textNode.setRangeTextDecoration(currentIndex, rangeEnd, "UNDERLINE");
+            if (UnderlineRanges.length > 0 && UnderlineRanges[UnderlineRanges.length - 1].end === currentIndex) {
+                UnderlineRanges[UnderlineRanges.length - 1].end = rangeEnd;
+            } else {
+                UnderlineRanges.push({start: currentIndex, end: rangeEnd});
+            }
         }
 
-        // Apply highlight color
         if (part.highlight) {
-            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(highlightColor)}]);
+            if (HighlightRanges.length > 0 && HighlightRanges[HighlightRanges.length - 1].end === currentIndex) {
+                HighlightRanges[HighlightRanges.length - 1].end = rangeEnd;
+            } else {
+                HighlightRanges.push({start: currentIndex, end: rangeEnd});
+            }
         }
 
         if (part.link && isAbsoluteUrl(part.link)) {
-            textNode.setRangeHyperlink(currentIndex, rangeEnd, {type: "URL", value: part.link});
-            textNode.setRangeFills(currentIndex, rangeEnd, [{type: "SOLID", color: rgb(linkColor)}]);
+            LinkRanges.push({start: currentIndex, end: rangeEnd, url: part.link});
         }
 
         currentIndex = rangeEnd;
     }
+
+    // Add final ranges
+    if (lastFontSize !== null) {
+        FontSizeRanges.push({start: lastFontSizeStart, end: currentIndex, size: lastFontSize});
+    }
+    if (lastFontStyle !== null) {
+        FontNameRanges.push({start: lastFontStyleStart, end: currentIndex, style: lastFontStyle});
+    }
+
+    logTiming('Start applying formatting');
+
+    if (FontSizeRanges.length > 0) {
+        console.log("FontSizeRanges", FontSizeRanges.length);
+        for (const range of FontSizeRanges) {
+            textNode.setRangeFontSize(range.start, range.end, range.size);
+        }
+    }
+
+    if (FontNameRanges.length > 0) {
+        console.log("FontNameRanges", FontNameRanges.length);
+        for (const range of FontNameRanges) {
+            textNode.setRangeFontName(range.start, range.end, {family: FONT_FAMILIES[0].name, style: range.style});
+        }
+    }
+
+    if (IndentRanges.length > 0) {
+        console.log("IndentRanges", IndentRanges.length);
+        for (const range of IndentRanges) {
+            textNode.setRangeParagraphIndent(range.start, range.start + 1, range.amount);
+        }
+    }
+
+    if (StrikethroughRanges.length > 0) {
+        console.log("StrikethroughRanges", StrikethroughRanges.length);
+        for (const range of StrikethroughRanges) {
+            textNode.setRangeTextDecoration(range.start, range.end, "STRIKETHROUGH");
+        }
+    }
+
+    if (UnderlineRanges.length > 0) {
+        console.log("UnderlineRanges", UnderlineRanges.length);
+        for (const range of UnderlineRanges) {
+            textNode.setRangeTextDecoration(range.start, range.end, "UNDERLINE");
+        }
+    }
+
+    if (HighlightRanges.length > 0) {
+        console.log("HighlightRanges", HighlightRanges.length);
+        for (const range of HighlightRanges) {
+            textNode.setRangeFills(range.start, range.end, [{type: "SOLID", color: rgb(highlightColor)}]);
+        }
+    }
+
+    if (LinkRanges.length > 0) {
+        console.log("LinkRanges", LinkRanges.length);
+        for (const range of LinkRanges) {
+            textNode.setRangeHyperlink(range.start, range.end, {type: "URL", value: range.url});
+            textNode.setRangeFills(range.start, range.end, [{type: "SOLID", color: rgb(linkColor)}]);
+        }
+    }
+
+    logTiming('End updateSelectedTextNode - All formatting applied');
 }
 
 async function createNewPage(dimensions: PageDimensions, lines: string[], highlightColor: string = COLOR_HEX.HIGHLIGHT, linkColor: string = COLOR_HEX.LINK): Promise<void> {
+    logTiming('Start createNewPage', `${lines.length} lines`);
+
     const builder = new PageBuilder(dimensions, highlightColor, linkColor);
     await builder.loadFonts();
+    logTiming('Fonts loaded');
 
     // Parse with markdown-it
     const markdown = lines.join('\n');
+    logTiming('Start parsing markdown');
     const blocks = parseMarkdownToBlocks(markdown);
+    logTiming('End parsing markdown', `${blocks.length} blocks`);
 
     for (const block of blocks) {
         const config = block.config || MARKDOWN_ELEMENTS.paragraph;
@@ -570,12 +693,16 @@ async function createNewPage(dimensions: PageDimensions, lines: string[], highli
     }
 
     builder.finish();
+    logTiming('End createNewPage - Builder finished');
 }
 
 // Haupt-Handler, der die Nachricht empfängt und die Logik delegiert
 figma.ui.onmessage = async (msg: PluginMessage) => {
     if (msg.type === "create-page") {
         try {
+            resetTimer();
+            logTiming('Start message handler');
+
             // 1. Gemeinsame Initialisierung (wird nur einmal ausgeführt)
             const {
                 dpi = 96,
@@ -588,17 +715,21 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
 
             const dimensions = getPageDimensions(dpi, pageFormat as PageFormat, padding);
             const lines = markdown.split("\n");
+            logTiming('Initialization complete', `${lines.length} lines`);
 
             const selection = figma.currentPage.selection;
             const selectedTextNode = selection.length === 1 && selection[0].type === 'TEXT' ? selection[0] as TextNode : null;
 
             // 2. Logik basierend auf der Auswahl delegieren
             if (selectedTextNode) {
+                logTiming('Mode: Update selected text node');
                 await updateSelectedTextNode(selectedTextNode, lines, highlightColor, linkColor);
             } else {
+                logTiming('Mode: Create new page');
                 await createNewPage(dimensions, lines, highlightColor, linkColor);
             }
 
+            logTiming('Complete - Plugin execution finished');
             // figma.closePlugin();
 
         } catch (error) {
